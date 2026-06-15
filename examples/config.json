@@ -1,0 +1,54 @@
+{
+  "anchors": {
+    "left": ["workspaces"],
+    "center": ["clock"],
+    "right": ["media", "system"],
+    "overlay": ["notifications"]
+  },
+  "modules": {
+    "workspaces": {
+      "enabled": true,
+      "priority": 90,
+      "compact": "focused",
+      "actions": { "primary": "toggle" },
+      "scroll": { "up": "previousWorkspace", "down": "nextWorkspace" }
+    },
+    "clock": {
+      "enabled": true,
+      "priority": 50,
+      "compact": "time"
+    },
+    "media": {
+      "enabled": true,
+      "priority": 60,
+      "compact": "track"
+    },
+    "system": {
+      "enabled": true,
+      "priority": 80,
+      "compact": "cluster"
+    }
+  },
+  "fonts": {
+    "icon": "JetBrainsMono Nerd Font",
+    "text": "Inter Display",
+    "time": "Inter Display",
+    "bodySize": 16,
+    "titleSize": 20,
+    "iconSize": 18
+  },
+  "sizes": {
+    "islandHeight": 38,
+    "islandGap": 10,
+    "edgeMargin": 16,
+    "expandedVerticalOffset": 12,
+    "expandedWidth": 520,
+    "expandedHeight": 380
+  },
+  "animations": {
+    "morphMs": 380,
+    "compactFadeMs": 150,
+    "contentFadeMs": 180
+  },
+  "style": {}
+}

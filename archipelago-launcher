@@ -1,0 +1,5 @@
+#!/bin/bash
+# Launcher for the Archipelago Quickshell system shell.
+
+QML_PATH="${ARCHIPELAGO_QML_PATH:-/usr/share/archipelago}"
+exec quickshell -p "$QML_PATH" "$@"

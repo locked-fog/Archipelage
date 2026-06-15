@@ -1,0 +1,71 @@
+tide-island-niri/
+
+# CMake/build outputs
+build/
+build-*/
+out/
+CMakeFiles/
+CMakeCache.txt
+CMakeUserPresets.json
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+DartConfiguration.tcl
+Testing/
+Makefile
+install_manifest.txt
+
+# C/C++ generated binaries and objects
+*.a
+*.dll
+*.dylib
+*.exe
+*.la
+*.lo
+*.o
+*.obj
+*.so
+*.so.*
+
+# Qt/QML generated files
+*_autogen/
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmltypes
+*.qmlc
+*.jsc
+.qmake.stash
+.qmlls.ini
+.runtime-qml/
+
+# Test and coverage artifacts
+*.gcda
+*.gcno
+*.gcov
+coverage/
+
+# Arch packaging artifacts
+pkg/
+src/
+*.pkg.tar*
+*.src.tar*
+*.tar.gz
+*.tar.zst
+
+# Local runtime/cache artifacts
+.cache/
+
+# IDEs/editors
+.vscode/
+.idea/
+*.user
+*.autosave
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

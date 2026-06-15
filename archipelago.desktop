@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Archipelago
+Comment=niri-first multi-island Quickshell system shell
+Exec=archipelago
+Icon=preferences-desktop-notification
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=niri;quickshell;island;shell;
