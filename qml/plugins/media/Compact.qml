@@ -5,7 +5,25 @@ Item {
     id: root
 
     property int compactLevel: 0
-    property var mediaState: null
+
+    // The media plugin owns its own state loader. Framework code
+    // (IslandModule, IslandHost) only sees a Component reference; it
+    // never has to know that media needs an internal MediaState singleton.
+    Loader {
+        id: mediaStateLoader
+        anchors.fill: parent
+        active: true
+        sourceComponent: mediaStateComponent
+        visible: false
+    }
+
+    Component {
+        id: mediaStateComponent
+
+        MediaState {}
+    }
+
+    readonly property var mediaState: mediaStateLoader.item
 
     Row {
         anchors.fill: parent

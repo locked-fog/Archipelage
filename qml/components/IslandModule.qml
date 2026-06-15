@@ -1,6 +1,5 @@
 import QtQuick
 import ArchipelagoBackend
-import "../modules"
 
 Item {
     id: root
@@ -28,12 +27,20 @@ Item {
     opacity: expanded ? 0 : 1
     enabled: !expanded
 
+    // TODO(plugins): per-moduleId branching of secondary / wheel
+    // behaviour below is business logic leaking into the framework.
+    // Phase 2b will move this into a per-plugin event-handler protocol
+    // (each Compact.qml exposes a `handlers` property; IslandModule
+    // invokes it without knowing which moduleId is which). For now
+    // we still call Compositor / config singletons directly from here.
     function performSecondaryAction() {
         const action = ArchipelagoConfig.moduleAction(moduleId, "secondary");
-        const state = mediaStateLoader.item;
-        if (moduleId === "media" && action === "playPause" && state && state.activePlayer) {
-            state.togglePlaying();
-            return;
+        if (moduleId === "media" && action === "playPause") {
+            const state = mediaStateRef();
+            if (state && state.activePlayer) {
+                state.togglePlaying();
+                return;
+            }
         }
         if (host)
             host.activateModule(moduleId, root);
@@ -44,13 +51,24 @@ Item {
             Compositor.niriService.focusWorkspaceRelative(angleDelta > 0 ? -1 : 1);
             return;
         }
-        const state = mediaStateLoader.item;
-        if (moduleId === "media" && state && state.activePlayer) {
-            if (angleDelta > 0 && state.activePlayer.previous)
-                state.activePlayer.previous();
-            else if (angleDelta < 0 && state.activePlayer.next)
-                state.activePlayer.next();
+        if (moduleId === "media") {
+            const state = mediaStateRef();
+            if (state && state.activePlayer) {
+                if (angleDelta > 0 && state.activePlayer.previous)
+                    state.activePlayer.previous();
+                else if (angleDelta < 0 && state.activePlayer.next)
+                    state.activePlayer.next();
+            }
         }
+    }
+
+    // Helper: pull the media plugin's MediaState from the loaded
+    // compact view. The plugin owns its own MediaState loader; the
+    // framework only knows to look at item.mediaState when moduleId
+    // is "media". Phase 2b replaces this with a generic handler call.
+    function mediaStateRef() {
+        const item = compactLoader.item;
+        return item && item.mediaState !== undefined ? item.mediaState : null;
     }
 
     IslandCapsule {
@@ -80,24 +98,8 @@ Item {
                     return;
                 if (item.compactLevel !== undefined)
                     item.compactLevel = root.compactLevel;
-                if (root.moduleId === "media" && item.mediaState !== undefined)
-                    item.mediaState = mediaStateLoader.item;
             }
         }
-    }
-
-    Loader {
-        id: mediaStateLoader
-
-        active: root.moduleId === "media"
-        sourceComponent: mediaStateComponent
-        visible: false
-    }
-
-    Component {
-        id: mediaStateComponent
-
-        MediaState {}
     }
 
     // Fallback used when host.compactFor(moduleId) returns null — e.g.

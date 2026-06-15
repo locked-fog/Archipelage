@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import ArchipelagoBackend
 import "components"
-import "modules"
+import "services"
 
 PanelWindow {
     id: root
@@ -15,45 +15,14 @@ PanelWindow {
     readonly property int compactBottom: compactTop + ArchipelagoConfig.islandHeight
     readonly property bool expandedOpen: expandedSurface.opened || expandedSurface.mounted
 
-    // moduleRegistry is the single source of truth for module-specific
-    // dispatch (compact / expanded views) and per-module expanded-surface
-    // sizing. IslandHost and ExpandedSurface both read from it instead of
-    // branching on moduleId themselves. Adding a new module requires only
-    // adding an entry here and providing the QML files; no edits to the
-    // dispatchers. preferredWidth / preferredHeight of 0 fall back to
+    // The plugin registry. Populated by the IslandRegistry child below
+    // at Component.onCompleted. IslandHost and ExpandedSurface both read
+    // from moduleRegistry instead of branching on moduleId themselves.
+    // Adding a new built-in module requires only dropping a directory
+    // under qml/plugins/<id>/ with Compact.qml and/or Expanded.qml.
+    // preferredWidth / preferredHeight of 0 fall back to
     // ArchipelagoConfig.expandedWidth / expandedHeight.
-    property var moduleRegistry: ({
-        "workspaces": {
-            compact: workspacesCompactComponent,
-            expanded: workspacesExpandedComponent,
-            preferredWidth: 680,
-            preferredHeight: 430
-        },
-        "clock": {
-            compact: clockCompactComponent,
-            expanded: clockExpandedComponent,
-            preferredWidth: 0,
-            preferredHeight: 360
-        },
-        "media": {
-            compact: mediaCompactComponent,
-            expanded: mediaExpandedComponent,
-            preferredWidth: 0,
-            preferredHeight: 410
-        },
-        "system": {
-            compact: systemCompactComponent,
-            expanded: systemExpandedComponent,
-            preferredWidth: 560,
-            preferredHeight: 460
-        },
-        "notifications": {
-            compact: null,
-            expanded: notificationsExpandedComponent,
-            preferredWidth: 520,
-            preferredHeight: 320
-        }
-    })
+    property var moduleRegistry: registry.entries
 
     function moduleEntry(moduleId) {
         return moduleRegistry && moduleId ? (moduleRegistry[moduleId] || {}) : {};
@@ -217,20 +186,12 @@ PanelWindow {
         }
     }
 
-    // Registry component factories. These are referenced by id from
-    // moduleRegistry above. compactLevel and mediaState are injected
-    // by IslandModule.qml's Loader onLoaded handler when each component
-    // is instantiated.
-    Component { id: workspacesCompactComponent; WorkspacesCompact {} }
-    Component {
-        id: workspacesExpandedComponent
-        WorkspacesExpanded { onCloseRequested: expandedSurface.close() }
+    // Plugin registry. Discovers built-in modules under qml/plugins/
+    // and exposes a uniform entries map. moduleRegistry above reads
+    // from registry.entries, so all framework dispatch flows through
+    // here. Adding a new module means dropping a directory under
+    // qml/plugins/<id>/ with Compact.qml and/or Expanded.qml.
+    IslandRegistry {
+        id: registry
     }
-    Component { id: clockCompactComponent; ClockCompact {} }
-    Component { id: clockExpandedComponent; ClockExpanded {} }
-    Component { id: mediaCompactComponent; MediaCompact {} }
-    Component { id: mediaExpandedComponent; MediaExpanded {} }
-    Component { id: systemCompactComponent; SystemCompact {} }
-    Component { id: systemExpandedComponent; SystemExpanded {} }
-    Component { id: notificationsExpandedComponent; NotificationsExpanded {} }
 }

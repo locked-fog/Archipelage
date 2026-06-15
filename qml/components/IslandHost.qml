@@ -1,6 +1,5 @@
 import QtQuick
 import ArchipelagoBackend
-import "../modules"
 
 Item {
     id: root
