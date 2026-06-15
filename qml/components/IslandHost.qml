@@ -47,6 +47,14 @@ Item {
         return true;
     }
 
+    function compactFor(moduleId) {
+        return parent && parent.compactComponentFor ? parent.compactComponentFor(moduleId) : null;
+    }
+
+    function expandedFor(moduleId) {
+        return parent && parent.expandedComponentFor ? parent.expandedComponentFor(moduleId) : null;
+    }
+
     function activateModule(moduleId, item) {
         if (!item)
             return;

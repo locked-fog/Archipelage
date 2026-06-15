@@ -69,17 +69,19 @@ Item {
         }
 
         Loader {
+            id: compactLoader
             anchors.fill: parent
-            sourceComponent: {
-                if (root.moduleId === "workspaces")
-                    return workspacesCompact;
-                if (root.moduleId === "clock")
-                    return clockCompact;
-                if (root.moduleId === "media")
-                    return mediaCompact;
-                if (root.moduleId === "system")
-                    return systemCompact;
-                return fallbackCompact;
+            sourceComponent: root.host
+                ? (root.host.compactFor(root.moduleId) || fallbackCompact)
+                : fallbackCompact
+
+            onLoaded: {
+                if (!item)
+                    return;
+                if (item.compactLevel !== undefined)
+                    item.compactLevel = root.compactLevel;
+                if (root.moduleId === "media" && item.mediaState !== undefined)
+                    item.mediaState = mediaStateLoader.item;
             }
         }
     }
@@ -98,39 +100,9 @@ Item {
         MediaState {}
     }
 
-    Component {
-        id: workspacesCompact
-
-        WorkspacesCompact {
-            compactLevel: root.compactLevel
-        }
-    }
-
-    Component {
-        id: clockCompact
-
-        ClockCompact {
-            compactLevel: root.compactLevel
-        }
-    }
-
-    Component {
-        id: mediaCompact
-
-        MediaCompact {
-            compactLevel: root.compactLevel
-            mediaState: mediaStateLoader.item
-        }
-    }
-
-    Component {
-        id: systemCompact
-
-        SystemCompact {
-            compactLevel: root.compactLevel
-        }
-    }
-
+    // Fallback used when host.compactFor(moduleId) returns null — e.g.
+    // a moduleId present in config but without a registered compact view.
+    // Kept inline here because it is framework policy, not plugin-owned.
     Component {
         id: fallbackCompact
 

@@ -47,20 +47,12 @@ Rectangle {
     }
 
     function calculateTargetWidth() {
-        const base = moduleId === "workspaces" ? 680
-            : moduleId === "system" ? 560
-            : moduleId === "notifications" ? 520
-            : ArchipelagoConfig.expandedWidth;
+        const base = shellWindow ? shellWindow.preferredExpandedWidth(moduleId) : ArchipelagoConfig.expandedWidth;
         return Math.min(base, Math.max(320, parent.width - ArchipelagoConfig.edgeMargin * 2));
     }
 
     function calculateTargetHeight() {
-        const base = moduleId === "workspaces" ? 430
-            : moduleId === "clock" ? 360
-            : moduleId === "media" ? 410
-            : moduleId === "system" ? 460
-            : moduleId === "notifications" ? 320
-            : ArchipelagoConfig.expandedHeight;
+        const base = shellWindow ? shellWindow.preferredExpandedHeight(moduleId) : ArchipelagoConfig.expandedHeight;
         const screenHeight = shellWindow && shellWindow.screen ? shellWindow.screen.height : 900;
         const maximum = Math.max(220, screenHeight - targetY - ArchipelagoConfig.edgeMargin);
         return Math.min(base, maximum);
@@ -157,19 +149,7 @@ Rectangle {
         anchors.fill: parent
         active: root.mounted
         opacity: root.contentVisible ? 1 : 0
-        sourceComponent: {
-            if (root.moduleId === "workspaces")
-                return workspacesExpanded;
-            if (root.moduleId === "clock")
-                return clockExpanded;
-            if (root.moduleId === "media")
-                return mediaExpanded;
-            if (root.moduleId === "system")
-                return systemExpanded;
-            if (root.moduleId === "notifications")
-                return notificationsExpanded;
-            return null;
-        }
+        sourceComponent: shellWindow ? shellWindow.expandedComponentFor(root.moduleId) : null
 
         Behavior on opacity {
             NumberAnimation {
@@ -177,37 +157,5 @@ Rectangle {
                 easing.type: Easing.OutCubic
             }
         }
-    }
-
-    Component {
-        id: workspacesExpanded
-
-        WorkspacesExpanded {
-            onCloseRequested: root.close()
-        }
-    }
-
-    Component {
-        id: clockExpanded
-
-        ClockExpanded {}
-    }
-
-    Component {
-        id: mediaExpanded
-
-        MediaExpanded {}
-    }
-
-    Component {
-        id: systemExpanded
-
-        SystemExpanded {}
-    }
-
-    Component {
-        id: notificationsExpanded
-
-        NotificationsExpanded {}
     }
 }

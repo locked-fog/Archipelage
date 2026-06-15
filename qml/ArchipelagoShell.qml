@@ -15,6 +15,68 @@ PanelWindow {
     readonly property int compactBottom: compactTop + ArchipelagoConfig.islandHeight
     readonly property bool expandedOpen: expandedSurface.opened || expandedSurface.mounted
 
+    // moduleRegistry is the single source of truth for module-specific
+    // dispatch (compact / expanded views) and per-module expanded-surface
+    // sizing. IslandHost and ExpandedSurface both read from it instead of
+    // branching on moduleId themselves. Adding a new module requires only
+    // adding an entry here and providing the QML files; no edits to the
+    // dispatchers. preferredWidth / preferredHeight of 0 fall back to
+    // ArchipelagoConfig.expandedWidth / expandedHeight.
+    property var moduleRegistry: ({
+        "workspaces": {
+            compact: workspacesCompactComponent,
+            expanded: workspacesExpandedComponent,
+            preferredWidth: 680,
+            preferredHeight: 430
+        },
+        "clock": {
+            compact: clockCompactComponent,
+            expanded: clockExpandedComponent,
+            preferredWidth: 0,
+            preferredHeight: 360
+        },
+        "media": {
+            compact: mediaCompactComponent,
+            expanded: mediaExpandedComponent,
+            preferredWidth: 0,
+            preferredHeight: 410
+        },
+        "system": {
+            compact: systemCompactComponent,
+            expanded: systemExpandedComponent,
+            preferredWidth: 560,
+            preferredHeight: 460
+        },
+        "notifications": {
+            compact: null,
+            expanded: notificationsExpandedComponent,
+            preferredWidth: 520,
+            preferredHeight: 320
+        }
+    })
+
+    function moduleEntry(moduleId) {
+        return moduleRegistry && moduleId ? (moduleRegistry[moduleId] || {}) : {};
+    }
+
+    function compactComponentFor(moduleId) {
+        return moduleEntry(moduleId).compact || null;
+    }
+
+    function expandedComponentFor(moduleId) {
+        return moduleEntry(moduleId).expanded || null;
+    }
+
+    function preferredExpandedWidth(moduleId) {
+        const preferred = moduleEntry(moduleId).preferredWidth;
+        return preferred && preferred > 0 ? preferred : ArchipelagoConfig.expandedWidth;
+    }
+
+    function preferredExpandedHeight(moduleId) {
+        const preferred = moduleEntry(moduleId).preferredHeight;
+        return preferred && preferred > 0 ? preferred : ArchipelagoConfig.expandedHeight;
+    }
+
     function styleColor(tokenName, fallback) {
         const override = ArchipelagoConfig.styleOverride(tokenName);
         return override !== "" ? override : fallback;
@@ -154,4 +216,21 @@ PanelWindow {
             notificationCapsule.show("niri", actionName, message);
         }
     }
+
+    // Registry component factories. These are referenced by id from
+    // moduleRegistry above. compactLevel and mediaState are injected
+    // by IslandModule.qml's Loader onLoaded handler when each component
+    // is instantiated.
+    Component { id: workspacesCompactComponent; WorkspacesCompact {} }
+    Component {
+        id: workspacesExpandedComponent
+        WorkspacesExpanded { onCloseRequested: expandedSurface.close() }
+    }
+    Component { id: clockCompactComponent; ClockCompact {} }
+    Component { id: clockExpandedComponent; ClockExpanded {} }
+    Component { id: mediaCompactComponent; MediaCompact {} }
+    Component { id: mediaExpandedComponent; MediaExpanded {} }
+    Component { id: systemCompactComponent; SystemCompact {} }
+    Component { id: systemExpandedComponent; SystemExpanded {} }
+    Component { id: notificationsExpandedComponent; NotificationsExpanded {} }
 }
