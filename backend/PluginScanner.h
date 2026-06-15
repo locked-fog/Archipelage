@@ -16,7 +16,7 @@
 //     Compact.qml       (optional)
 //     Expanded.qml      (optional)
 //
-// manifest.json schema (all fields optional except id):
+// manifest.json schema (all fields optional):
 //   {
 //     "id":              "workspaces",        // defaults to directory name
 //     "label":           "Workspaces",        // human-readable
@@ -31,6 +31,10 @@
 //                                              // is responsible for importing
 //                                              // the actual backend singletons
 //   }
+//
+// The exposed entry always includes both:
+//   id            stable plugin id consumed by config / registry
+//   directoryName actual directory used to resolve Compact.qml / Expanded.qml
 //
 // If manifest.json is missing or unparseable the scanner falls back to
 // the directory-name + "Compact.qml"/"Expanded.qml" convention so that

@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QProcess>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <QtQml/qqml.h>
 
@@ -28,6 +29,8 @@ class NotificationService : public QObject {
 public:
     explicit NotificationService(QObject *parent = nullptr);
     ~NotificationService() override;
+
+    static QStringList monitorArguments();
 
 signals:
     void notificationReceived(const QString &appName,

@@ -87,6 +87,7 @@ private slots:
 
         const QVariantMap entry = list.first().toMap();
         QCOMPARE(entry.value("id").toString(), QStringLiteral("workspaces"));
+        QCOMPARE(entry.value("directoryName").toString(), QStringLiteral("workspaces"));
         QCOMPARE(entry.value("label").toString(), QStringLiteral("Workspaces"));
         QCOMPARE(entry.value("version").toString(), QStringLiteral("1.0.0"));
         QCOMPARE(entry.value("anchors").toStringList(),
@@ -109,6 +110,7 @@ private slots:
         QCOMPARE(list.size(), 1);
         const QVariantMap entry = list.first().toMap();
         QCOMPARE(entry.value("id").toString(), QStringLiteral("clock"));
+        QCOMPARE(entry.value("directoryName").toString(), QStringLiteral("clock"));
         QCOMPARE(entry.value("compact").toString(), QStringLiteral("Compact.qml"));
         QCOMPARE(entry.value("expanded").toString(), QStringLiteral("Expanded.qml"));
         QCOMPARE(entry.value("source").toString(), QStringLiteral("fallback"));
@@ -139,6 +141,33 @@ private slots:
         writePluginDir("a", R"({"id": "a"})", true, false);
         PluginScanner scanner;
         QVERIFY(scanner.manifestFor("does-not-exist").isEmpty());
+    }
+
+    void manifestIdMayDifferFromDirectoryName()
+    {
+        writePluginDir("community-clock", R"({"id": "clock.alt", "label": "Alt Clock"})", true, true);
+        PluginScanner scanner;
+        const QVariantMap entry = scanner.manifestFor("clock.alt");
+        QCOMPARE(entry.value("id").toString(), QStringLiteral("clock.alt"));
+        QCOMPARE(entry.value("directoryName").toString(), QStringLiteral("community-clock"));
+    }
+
+    void unsafeComponentPathsFallBackToConventions()
+    {
+        writePluginDir("unsafe",
+                       R"({"id": "unsafe", "compact": "../Escape.qml", "expanded": "Nested/View.qml"})",
+                       true, true);
+        PluginScanner scanner;
+        const QVariantMap entry = scanner.manifestFor("unsafe");
+        QCOMPARE(entry.value("compact").toString(), QStringLiteral("Compact.qml"));
+        QCOMPARE(entry.value("expanded").toString(), QStringLiteral("Expanded.qml"));
+    }
+
+    void unsafeDirectoryIdsAreIgnored()
+    {
+        writePluginDir("bad id", "", true, true);
+        PluginScanner scanner;
+        QCOMPARE(scanner.plugins().size(), 0);
     }
 
     void rescanPicksUpNewPlugin()

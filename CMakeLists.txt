@@ -206,7 +206,9 @@ install(FILES LICENSE
 
 install(DIRECTORY qml
     DESTINATION ${CMAKE_INSTALL_DATADIR}/archipelago
-    FILES_MATCHING PATTERN "*.qml"
+    FILES_MATCHING
+        PATTERN "*.qml"
+        PATTERN "manifest.json"
 )
 
 install(DIRECTORY examples

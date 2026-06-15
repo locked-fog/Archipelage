@@ -35,6 +35,14 @@ NotificationService::~NotificationService()
     }
 }
 
+QStringList NotificationService::monitorArguments()
+{
+    return {
+        QStringLiteral("--session"),
+        QStringLiteral("type='method_call',interface='org.freedesktop.Notifications',member='Notify'")
+    };
+}
+
 void NotificationService::startMonitor()
 {
     if (m_shuttingDown || m_monitor)
@@ -48,11 +56,7 @@ void NotificationService::startMonitor()
 
     m_monitor = new QProcess(this);
     m_monitor->setProgram(executable);
-    m_monitor->setArguments({
-        QStringLiteral("--system"),
-        QStringLiteral("--monitor"),
-        QStringLiteral("type='method_call',interface='org.freedesktop.Notifications',member='Notify'")
-    });
+    m_monitor->setArguments(monitorArguments());
 
     connect(m_monitor, &QProcess::readyReadStandardOutput,
             this, &NotificationService::handleOutput);

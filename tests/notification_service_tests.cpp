@@ -7,6 +7,14 @@ class NotificationServiceTests : public QObject {
     Q_OBJECT
 
 private slots:
+    void monitorUsesSessionBus()
+    {
+        const QStringList args = NotificationService::monitorArguments();
+        QVERIFY(args.contains(QStringLiteral("--session")));
+        QVERIFY(!args.contains(QStringLiteral("--system")));
+        QVERIFY(args.contains(QStringLiteral("type='method_call',interface='org.freedesktop.Notifications',member='Notify'")));
+    }
+
     void constructsWithoutDbusMonitor()
     {
         // On a CI host without `dbus-monitor` on PATH the service

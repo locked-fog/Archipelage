@@ -60,7 +60,8 @@ Item {
 
     function loadEntry(manifest) {
         const id = manifest.id;
-        const dirUrl = pluginsBase + "/" + id + "/";
+        const directoryName = manifest.directoryName || id;
+        const dirUrl = pluginsBase + "/" + directoryName + "/";
         const compact = manifest.compact ? tryLoad(dirUrl + manifest.compact) : { component: null, error: null };
         const expanded = manifest.expanded ? tryLoad(dirUrl + manifest.expanded) : { component: null, error: null };
 
@@ -71,6 +72,11 @@ Item {
 
         return {
             id: id,
+            directoryName: directoryName,
+            label: manifest.label || id,
+            anchors: manifest.anchors || [],
+            defaultPriority: Number(manifest.defaultPriority || 0),
+            dataNeeds: manifest.dataNeeds || [],
             compact: compact.component,
             expanded: expanded.component,
             preferredWidth: Number(manifest.preferredWidth || 0),

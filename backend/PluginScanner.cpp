@@ -18,6 +18,37 @@ constexpr const char *kManifestFile = "manifest.json";
 constexpr const char *kCompactFile = "Compact.qml";
 constexpr const char *kExpandedFile = "Expanded.qml";
 
+bool isSafePluginId(const QString &id)
+{
+    if (id.isEmpty())
+        return false;
+    for (const QChar ch : id) {
+        if (ch.isLetterOrNumber() || ch == QLatin1Char('_')
+            || ch == QLatin1Char('-') || ch == QLatin1Char('.'))
+            continue;
+        return false;
+    }
+    return true;
+}
+
+QString safeComponentFileName(const QJsonObject &object,
+                              const QString &key,
+                              const QString &fallback)
+{
+    const QString value = object.value(key).toString(fallback).trimmed();
+    if (value.isEmpty())
+        return QString();
+    if (value.contains(QLatin1Char('/')) || value.contains(QLatin1Char('\\'))) {
+        qCWarning(lcPlugins) << "Ignoring unsafe component path in manifest key" << key << ":" << value;
+        return fallback;
+    }
+    if (!value.endsWith(QStringLiteral(".qml"))) {
+        qCWarning(lcPlugins) << "Ignoring non-QML component path in manifest key" << key << ":" << value;
+        return fallback;
+    }
+    return value;
+}
+
 QStringList pluginSearchPaths()
 {
     QStringList paths;
@@ -46,11 +77,17 @@ QStringList pluginSearchPaths()
 
 QVariantMap fallbackEntry(const QString &absoluteDirPath, const QString &id)
 {
+    if (!isSafePluginId(id)) {
+        qCWarning(lcPlugins) << "Ignoring plugin directory with unsafe id:" << id;
+        return {};
+    }
+
     const QString compactPath = absoluteDirPath + QLatin1Char('/') + QLatin1String(kCompactFile);
     const QString expandedPath = absoluteDirPath + QLatin1Char('/') + QLatin1String(kExpandedFile);
 
     QVariantMap entry;
     entry.insert(QStringLiteral("id"), id);
+    entry.insert(QStringLiteral("directoryName"), id);
     entry.insert(QStringLiteral("label"), id);
     entry.insert(QStringLiteral("version"), QStringLiteral("0.0.0"));
     entry.insert(QStringLiteral("anchors"), QVariantList());
@@ -103,8 +140,11 @@ void PluginScanner::scan()
     QVariantList next;
     if (!m_pluginsBase.isEmpty()) {
         const QStringList subdirs = listSubdirectories(m_pluginsBase);
-        for (const QString &subdir : subdirs)
-            next.append(parsePluginDir(subdir));
+        for (const QString &subdir : subdirs) {
+            const QVariantMap entry = parsePluginDir(subdir);
+            if (!entry.isEmpty())
+                next.append(entry);
+        }
     }
     m_plugins = next;
     emit pluginsChanged();
@@ -146,8 +186,20 @@ QVariantMap PluginScanner::parseManifestFile(const QString &manifestPath,
     }
 
     const QJsonObject object = document.object();
+    const QString requestedId = object.value(QStringLiteral("id")).toString(fallbackId).trimmed();
+    const QString id = isSafePluginId(requestedId) ? requestedId : fallbackId;
+    if (!isSafePluginId(id)) {
+        qCWarning(lcPlugins) << "Ignoring manifest with unsafe id:" << requestedId
+                             << "in" << manifestPath;
+        return {};
+    }
+    if (id != requestedId) {
+        qCWarning(lcPlugins) << "Manifest id is unsafe; using directory name for" << manifestPath;
+    }
+
     QVariantMap entry;
-    entry.insert(QStringLiteral("id"), object.value(QStringLiteral("id")).toString(fallbackId));
+    entry.insert(QStringLiteral("id"), id);
+    entry.insert(QStringLiteral("directoryName"), fallbackId);
     entry.insert(QStringLiteral("label"),
                  object.value(QStringLiteral("label")).toString(entry.value(QStringLiteral("id")).toString()));
     entry.insert(QStringLiteral("version"),
@@ -160,9 +212,9 @@ QVariantMap PluginScanner::parseManifestFile(const QString &manifestPath,
     entry.insert(QStringLiteral("defaultPriority"),
                  object.value(QStringLiteral("defaultPriority")).toInt(0));
     entry.insert(QStringLiteral("compact"),
-                 object.value(QStringLiteral("compact")).toString(QStringLiteral("Compact.qml")));
+                 safeComponentFileName(object, QStringLiteral("compact"), QStringLiteral("Compact.qml")));
     entry.insert(QStringLiteral("expanded"),
-                 object.value(QStringLiteral("expanded")).toString(QStringLiteral("Expanded.qml")));
+                 safeComponentFileName(object, QStringLiteral("expanded"), QStringLiteral("Expanded.qml")));
     entry.insert(QStringLiteral("preferredWidth"),
                  object.value(QStringLiteral("preferredWidth")).toInt(0));
     entry.insert(QStringLiteral("preferredHeight"),

@@ -21,7 +21,43 @@ Item {
 
     function modulesForAnchor(anchorName) {
         const list = anchorsConfig[anchorName];
-        return list === undefined || list === null ? [] : list;
+        const configured = [];
+        if (list !== undefined && list !== null) {
+            for (let index = 0; index < list.length; index++)
+                configured.push(list[index]);
+        }
+        const configuredIds = configuredModuleIds();
+        const entries = parent && parent.moduleRegistry ? parent.moduleRegistry : {};
+        const manifestDefaults = [];
+        const ids = Object.keys(entries);
+        for (let index = 0; index < ids.length; index++) {
+            const id = ids[index];
+            const entry = entries[id] || {};
+            const anchors = entry.anchors || [];
+            if (configuredIds[id] || anchors.indexOf(anchorName) < 0)
+                continue;
+            manifestDefaults.push({
+                id: id,
+                priority: Number(entry.defaultPriority || 0)
+            });
+        }
+        manifestDefaults.sort((a, b) => b.priority - a.priority);
+        for (let index = 0; index < manifestDefaults.length; index++)
+            configured.push(manifestDefaults[index].id);
+        return configured;
+    }
+
+    function configuredModuleIds() {
+        const result = {};
+        const anchors = Object.keys(anchorsConfig || {});
+        for (let anchorIndex = 0; anchorIndex < anchors.length; anchorIndex++) {
+            const list = anchorsConfig[anchors[anchorIndex]];
+            if (!list)
+                continue;
+            for (let itemIndex = 0; itemIndex < list.length; itemIndex++)
+                result[list[itemIndex]] = true;
+        }
+        return result;
     }
 
     function moduleConfig(moduleId) {
@@ -31,7 +67,10 @@ Item {
 
     function modulePriority(moduleId) {
         const config = moduleConfig(moduleId);
-        return Number(config.priority || 0);
+        if (config.priority !== undefined)
+            return Number(config.priority || 0);
+        const entry = parent && parent.moduleEntry ? parent.moduleEntry(moduleId) : {};
+        return Number(entry.defaultPriority || 0);
     }
 
     function shouldShowModule(moduleId) {

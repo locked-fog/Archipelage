@@ -167,6 +167,11 @@ QVariantMap defaultModules()
     return modules;
 }
 
+QVariantMap defaultModuleConfig()
+{
+    return makeModule(true, 0, QString(), {}, {}, 120);
+}
+
 bool isAllowedAnchor(const QString &anchor)
 {
     static const QSet<QString> allowed = {
@@ -483,8 +488,8 @@ ArchipelagoConfig::LoadedConfig ArchipelagoConfig::parseConfigObject(const QJson
             const QJsonObject modulesObject = modulesValue.toObject();
             const auto keys = modulesObject.keys();
             for (const QString &moduleId : keys) {
-                if (!next.modules.contains(moduleId)) {
-                    errors.append(QStringLiteral("Invalid modules.%1; unknown module.").arg(moduleId));
+                if (moduleId.trimmed().isEmpty()) {
+                    errors.append(QStringLiteral("Invalid modules entry; empty module id."));
                     continue;
                 }
 
@@ -494,7 +499,9 @@ ArchipelagoConfig::LoadedConfig ArchipelagoConfig::parseConfigObject(const QJson
                     continue;
                 }
 
-                QVariantMap module = next.modules.value(moduleId).toMap();
+                QVariantMap module = next.modules.contains(moduleId)
+                    ? next.modules.value(moduleId).toMap()
+                    : defaultModuleConfig();
                 const QJsonObject moduleObject = value.toObject();
                 module.insert(QStringLiteral("enabled"),
                               jsonBool(moduleObject,

@@ -89,15 +89,22 @@ Item {
             sourceComponent: root.host
                 ? (root.host.compactFor(root.moduleId) || fallbackCompact)
                 : fallbackCompact
+        }
 
-            onLoaded: {
-                if (!item)
-                    return;
-                if (item.compactLevel !== undefined)
-                    item.compactLevel = root.compactLevel;
-                if (item.moduleId !== undefined)
-                    item.moduleId = root.moduleId;
-            }
+        Binding {
+            target: compactLoader.item
+            property: "compactLevel"
+            value: root.compactLevel
+            when: compactLoader.item && compactLoader.item.compactLevel !== undefined
+            restoreMode: Binding.RestoreNone
+        }
+
+        Binding {
+            target: compactLoader.item
+            property: "moduleId"
+            value: root.moduleId
+            when: compactLoader.item && compactLoader.item.moduleId !== undefined
+            restoreMode: Binding.RestoreNone
         }
     }
 

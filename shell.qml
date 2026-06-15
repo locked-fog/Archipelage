@@ -64,7 +64,7 @@ Scope {
     }
 
     Connections {
-        target: SystemServices
+        target: NotificationService
 
         function onNotificationReceived(appName, summary, body) {
             shellRoot.showNotificationAll(appName, summary, body);
