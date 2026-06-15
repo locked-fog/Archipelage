@@ -5,6 +5,8 @@ Item {
     id: root
 
     property int compactLevel: 0
+    property string moduleId: ""
+    property var handlers: ({})
     property date now: new Date()
 
     Timer {

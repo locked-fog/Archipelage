@@ -5,6 +5,8 @@ Item {
     id: root
 
     property int compactLevel: 0
+    property string moduleId: ""
+    property var handlers: ({})
     property real volume: 0
     property bool muted: false
 

@@ -1,6 +1,21 @@
 import QtQuick
 import ArchipelagoBackend
 
+// IslandModule is the framework's per-capsule container. It owns no
+// per-moduleId business logic — the active plugin's Compact.qml is
+// responsible for its own primaryClicked / secondaryClicked /
+// wheelMoved behaviour, exposed via the `handlers` property.
+//
+// Wire protocol with a plugin Compact.qml:
+//   property int    compactLevel     (framework-injected)
+//   property string moduleId         (framework-injected; null-safe)
+//   property var    handlers         (plugin-set, optional)
+//       handlers.primaryClicked()                  -> bool
+//       handlers.secondaryClicked(action: string)   -> bool
+//       handlers.wheelMoved(delta: int)             -> void
+//
+// Returning false from a handler tells the framework to apply its
+// default behaviour (typically host.activateModule → open expanded).
 Item {
     id: root
 
@@ -27,48 +42,24 @@ Item {
     opacity: expanded ? 0 : 1
     enabled: !expanded
 
-    // TODO(plugins): per-moduleId branching of secondary / wheel
-    // behaviour below is business logic leaking into the framework.
-    // Phase 2b will move this into a per-plugin event-handler protocol
-    // (each Compact.qml exposes a `handlers` property; IslandModule
-    // invokes it without knowing which moduleId is which). For now
-    // we still call Compositor / config singletons directly from here.
-    function performSecondaryAction() {
-        const action = ArchipelagoConfig.moduleAction(moduleId, "secondary");
-        if (moduleId === "media" && action === "playPause") {
-            const state = mediaStateRef();
-            if (state && state.activePlayer) {
-                state.togglePlaying();
-                return;
-            }
-        }
-        if (host)
-            host.activateModule(moduleId, root);
-    }
+    // Per-plugin compactWidth above is the only remaining moduleId
+    // branch in the framework; it is a layout hint, not business
+    // logic, and is consumed only by the per-row layout. Plugins
+    // are free to set their own width inside their Compact.qml too.
 
-    function performWheel(angleDelta) {
-        if (moduleId === "workspaces" && Compositor.niriService) {
-            Compositor.niriService.focusWorkspaceRelative(angleDelta > 0 ? -1 : 1);
-            return;
-        }
-        if (moduleId === "media") {
-            const state = mediaStateRef();
-            if (state && state.activePlayer) {
-                if (angleDelta > 0 && state.activePlayer.previous)
-                    state.activePlayer.previous();
-                else if (angleDelta < 0 && state.activePlayer.next)
-                    state.activePlayer.next();
-            }
-        }
-    }
-
-    // Helper: pull the media plugin's MediaState from the loaded
-    // compact view. The plugin owns its own MediaState loader; the
-    // framework only knows to look at item.mediaState when moduleId
-    // is "media". Phase 2b replaces this with a generic handler call.
-    function mediaStateRef() {
+    function invokeHandler(name, ...args) {
         const item = compactLoader.item;
-        return item && item.mediaState !== undefined ? item.mediaState : null;
+        if (!item || !item.handlers)
+            return false;
+        const fn = item.handlers[name];
+        if (typeof fn !== "function")
+            return false;
+        try {
+            return fn.apply(item, args) === true;
+        } catch (e) {
+            console.warn("[IslandModule] handler", name, "threw:", e);
+            return false;
+        }
     }
 
     IslandCapsule {
@@ -78,12 +69,18 @@ Item {
         interactive: root.enabled
 
         onPrimaryClicked: {
-            if (host)
+            if (!root.invokeHandler("primaryClicked") && host)
                 host.activateModule(root.moduleId, root);
         }
-        onSecondaryClicked: root.performSecondaryAction()
+
+        onSecondaryClicked: {
+            const action = ArchipelagoConfig.moduleAction(root.moduleId, "secondary");
+            if (!root.invokeHandler("secondaryClicked", action) && host)
+                host.activateModule(root.moduleId, root);
+        }
+
         onWheelMoved: function(angleDelta) {
-            root.performWheel(angleDelta);
+            root.invokeHandler("wheelMoved", angleDelta);
         }
 
         Loader {
@@ -98,6 +95,8 @@ Item {
                     return;
                 if (item.compactLevel !== undefined)
                     item.compactLevel = root.compactLevel;
+                if (item.moduleId !== undefined)
+                    item.moduleId = root.moduleId;
             }
         }
     }

@@ -5,6 +5,8 @@ Item {
     id: root
 
     property int compactLevel: 0
+    property string moduleId: ""
+    property var handlers: ({})
     readonly property var niri: Compositor.niriService
     readonly property var workspace: niri ? niri.focusedWorkspace : ({})
     readonly property string workspaceText: {
@@ -14,6 +16,19 @@ Item {
         return String(name);
     }
     readonly property string outputText: workspace.output ? String(workspace.output).replace(/-.*/, "") : ""
+
+    Component.onCompleted: {
+        // wheel on the workspaces capsule focuses the relative workspace.
+        // This is the only behaviour the workspaces compact view owns;
+        // primary / secondary clicks fall through to the framework
+        // default (host.activateModule → open the expanded surface).
+        handlers = {
+            wheelMoved: function(delta) {
+                if (Compositor.niriService)
+                    Compositor.niriService.focusWorkspaceRelative(delta > 0 ? -1 : 1);
+            }
+        };
+    }
 
     Row {
         anchors.centerIn: parent
