@@ -1,0 +1,12 @@
+{
+  "id": "clock",
+  "label": "Clock",
+  "version": "1.0.0",
+  "anchors": ["center"],
+  "defaultPriority": 50,
+  "compact": "Compact.qml",
+  "expanded": "Expanded.qml",
+  "preferredWidth": 0,
+  "preferredHeight": 360,
+  "dataNeeds": []
+}

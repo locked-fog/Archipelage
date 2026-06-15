@@ -1,0 +1,12 @@
+{
+  "id": "workspaces",
+  "label": "Workspaces",
+  "version": "1.0.0",
+  "anchors": ["left", "center"],
+  "defaultPriority": 90,
+  "compact": "Compact.qml",
+  "expanded": "Expanded.qml",
+  "preferredWidth": 680,
+  "preferredHeight": 430,
+  "dataNeeds": ["niriService"]
+}

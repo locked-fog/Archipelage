@@ -24,6 +24,8 @@ set(ARCHIPELAGO_BACKEND_SOURCES
     backend/CompositorProvider.cpp
     backend/NiriCompositorService.h
     backend/NiriCompositorService.cpp
+    backend/PluginScanner.h
+    backend/PluginScanner.cpp
     backend/StyleTokens.h
     backend/StyleTokens.cpp
     backend/SysBackend.h
@@ -69,6 +71,23 @@ target_link_libraries(niri_compositor_service_tests PRIVATE
 )
 
 add_test(NAME niri_compositor_service COMMAND niri_compositor_service_tests)
+
+add_executable(plugin_scanner_tests
+    tests/plugin_scanner_tests.cpp
+    backend/PluginScanner.h
+    backend/PluginScanner.cpp
+)
+
+target_include_directories(plugin_scanner_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+)
+
+target_link_libraries(plugin_scanner_tests PRIVATE
+    Qt6::Core
+    Qt6::Test
+)
+
+add_test(NAME plugin_scanner COMMAND plugin_scanner_tests)
 
 qt_add_qml_module(ArchipelagoBackend
     URI ArchipelagoBackend

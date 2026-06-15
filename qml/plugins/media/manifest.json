@@ -1,0 +1,12 @@
+{
+  "id": "media",
+  "label": "Media",
+  "version": "1.0.0",
+  "anchors": ["center", "right"],
+  "defaultPriority": 60,
+  "compact": "Compact.qml",
+  "expanded": "Expanded.qml",
+  "preferredWidth": 0,
+  "preferredHeight": 410,
+  "dataNeeds": ["mediaService"]
+}

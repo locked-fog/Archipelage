@@ -1,57 +1,68 @@
 import QtQuick
 import Quickshell
+import ArchipelagoBackend
 
-// IslandRegistry discovers the available business modules ("plugins")
-// and exposes a uniform entry map to the framework.
+// IslandRegistry exposes a uniform entry map for the framework.
+// The actual disk scan is done by the C++ PluginScanner singleton;
+// IslandRegistry just builds the { id → Component } map from the
+// manifest list and watches for rescan notifications.
 //
-// In Phase 2a plugins are discovered by hard-coded id list (the
-// five built-ins). In Phase 2b the list will be replaced by a C++
-// helper that lists subdirectories of pluginsBase at startup, so
-// that dropping a new directory under qml/plugins/<id>/ is enough
-// to register a new business module — no edit to this file.
+// Adding a new built-in module means:
+//   1. drop a directory under qml/plugins/<id>/
+//   2. (optional) write qml/plugins/<id>/manifest.json
+//   3. (optional) write qml/plugins/<id>/Compact.qml
+//   4. (optional) write qml/plugins/<id>/Expanded.qml
 //
-// Each entry exposes a Qt.createComponent result for Compact.qml and
-// Expanded.qml, plus per-module expanded-surface sizing hints.
-// ArchipelagoShell builds its moduleRegistry from this.entries.
+// No edit to IslandRegistry.qml or ArchipelagoShell.qml is required.
+// Both are now data-driven from PluginScanner.
 Item {
     id: root
 
-    // Phase 2a: built-in plugin ids. Phase 2b replaces this with
-    // a directory scan; the rest of the file is already prepared.
-    readonly property var _builtinIds: [
-        "workspaces",
-        "clock",
-        "media",
-        "system",
-        "notifications"
-    ]
-
-    // Root of the plugins tree. Each subdirectory is one plugin,
-    // named by the directory name. pluginsBase is the qml/ install
-    // root by default; override for tests or custom layouts.
-    property url pluginsBase: Qt.resolvedUrl("../plugins")
+    // pluginsBase is exposed for diagnostics; PluginScanner already
+    // resolves it from $ARCHIPELAGO_PLUGINS_DIR / $PWD/qml/plugins /
+    // <install>/share/archipelago/qml/plugins. We mirror it here so
+    // QML can build absolute file URLs from the same root.
+    readonly property url pluginsBase: PluginScanner.pluginsBase !== ""
+        ? Qt.url("file://" + PluginScanner.pluginsBase)
+        : Qt.resolvedUrl("../plugins")
 
     // Public API consumed by ArchipelagoShell:
     //   entries[id] = { id, compact, expanded, preferredWidth, preferredHeight }
-    // compact / expanded are Component references (or null if missing).
-    // preferredWidth / preferredHeight of 0 fall back to ArchipelagoConfig.
+    // compact / expanded are Component references (or null if missing
+    // or empty in manifest). preferredWidth / preferredHeight of 0 fall
+    // back to ArchipelagoConfig.
     property var entries: ({})
 
-    // reload() re-scans pluginsBase and rebuilds entries. Cheap to call
-    // on demand (e.g. when the user adds a new plugin at runtime).
-    function reload() {
-        const next = {};
-        for (const id of _builtinIds)
-            next[id] = loadEntry(id);
-        entries = next;
+    // React to the scanner finishing a rescan (initial scan, manual
+    // rescan, or runtime env-var change).
+    Connections {
+        target: PluginScanner
+        function onPluginsChanged() {
+            root.reload();
+        }
     }
 
     Component.onCompleted: reload()
 
-    function loadEntry(id) {
-        const base = pluginsBase + "/" + id + "/";
-        const compact = tryLoad(base + "Compact.qml");
-        const expanded = tryLoad(base + "Expanded.qml");
+    // rebuild entries from the current PluginScanner.plugins list.
+    function reload() {
+        const next = {};
+        const list = PluginScanner.plugins || [];
+        for (let i = 0; i < list.length; i++) {
+            const manifest = list[i];
+            const id = manifest.id;
+            if (!id)
+                continue;
+            next[id] = loadEntry(manifest);
+        }
+        entries = next;
+    }
+
+    function loadEntry(manifest) {
+        const id = manifest.id;
+        const dirUrl = pluginsBase + "/" + id + "/";
+        const compact = manifest.compact ? tryLoad(dirUrl + manifest.compact) : { component: null, error: null };
+        const expanded = manifest.expanded ? tryLoad(dirUrl + manifest.expanded) : { component: null, error: null };
 
         if (compact.error)
             console.warn("[IslandRegistry] compact load failed for", id, ":", compact.error);
@@ -62,8 +73,8 @@ Item {
             id: id,
             compact: compact.component,
             expanded: expanded.component,
-            preferredWidth: 0,
-            preferredHeight: 0
+            preferredWidth: Number(manifest.preferredWidth || 0),
+            preferredHeight: Number(manifest.preferredHeight || 0)
         };
     }
 
