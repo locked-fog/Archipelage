@@ -7,7 +7,7 @@ Item {
     property var entries: []
 
     Connections {
-        target: SystemServices
+        target: NotificationService
 
         function onNotificationReceived(appName, summary, body) {
             const next = entries.slice(0, 9);

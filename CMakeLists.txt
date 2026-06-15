@@ -28,6 +28,8 @@ set(ARCHIPELAGO_BACKEND_SOURCES
     backend/CompositorProvider.cpp
     backend/NiriCompositorService.h
     backend/NiriCompositorService.cpp
+    backend/NotificationService.h
+    backend/NotificationService.cpp
     backend/PluginScanner.h
     backend/PluginScanner.cpp
     backend/StyleTokens.h
@@ -147,6 +149,23 @@ target_link_libraries(brightness_service_tests PRIVATE
 )
 
 add_test(NAME brightness_service COMMAND brightness_service_tests)
+
+add_executable(notification_service_tests
+    tests/notification_service_tests.cpp
+    backend/NotificationService.h
+    backend/NotificationService.cpp
+)
+
+target_include_directories(notification_service_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+)
+
+target_link_libraries(notification_service_tests PRIVATE
+    Qt6::Core
+    Qt6::Test
+)
+
+add_test(NAME notification_service COMMAND notification_service_tests)
 
 qt_add_qml_module(ArchipelagoBackend
     URI ArchipelagoBackend
