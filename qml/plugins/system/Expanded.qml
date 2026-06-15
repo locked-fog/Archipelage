@@ -70,8 +70,8 @@ Item {
         Text {
             anchors.right: parent.right
             anchors.verticalCenter: title.verticalCenter
-            text: SysBackend.batteryCapacity > 0 ? SysBackend.batteryCapacity + "% " + SysBackend.batteryStatus : "Battery unknown"
-            color: SysBackend.batteryCapacity > 0 && SysBackend.batteryCapacity <= 20 ? StyleTokens.warning : StyleTokens.textSecondary
+            text: BatteryService.capacity > 0 ? BatteryService.capacity + "% " + BatteryService.status : "Battery unknown"
+            color: BatteryService.capacity > 0 && BatteryService.capacity <= 20 ? StyleTokens.warning : StyleTokens.textSecondary
             font.pixelSize: 12
             font.family: ArchipelagoConfig.textFontFamily
             font.weight: Font.DemiBold
@@ -107,7 +107,7 @@ Item {
                 onValueMoved: function(value) {
                     root.brightness = value;
                 }
-                onCommitRequested: SystemServices.setBrightness(root.brightness)
+                onCommitRequested: BrightnessService.setBrightness(root.brightness)
             }
 
             Row {

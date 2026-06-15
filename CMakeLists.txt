@@ -22,6 +22,8 @@ set(ARCHIPELAGO_BACKEND_SOURCES
     backend/ArchipelagoConfig.cpp
     backend/BatteryService.h
     backend/BatteryService.cpp
+    backend/BrightnessService.h
+    backend/BrightnessService.cpp
     backend/CompositorProvider.h
     backend/CompositorProvider.cpp
     backend/NiriCompositorService.h
@@ -128,6 +130,23 @@ target_link_libraries(volume_service_tests PRIVATE
 )
 
 add_test(NAME volume_service COMMAND volume_service_tests)
+
+add_executable(brightness_service_tests
+    tests/brightness_service_tests.cpp
+    backend/BrightnessService.h
+    backend/BrightnessService.cpp
+)
+
+target_include_directories(brightness_service_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+)
+
+target_link_libraries(brightness_service_tests PRIVATE
+    Qt6::Core
+    Qt6::Test
+)
+
+add_test(NAME brightness_service COMMAND brightness_service_tests)
 
 qt_add_qml_module(ArchipelagoBackend
     URI ArchipelagoBackend
