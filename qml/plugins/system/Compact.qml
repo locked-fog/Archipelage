@@ -19,23 +19,15 @@ Item {
     }
 
     Component.onCompleted: {
-        SystemServices.requestVolume();
+        VolumeService.requestVolume();
     }
 
     Connections {
-        target: SystemServices
+        target: VolumeService
 
-        function onVolumeSnapshotReady(value, isMuted, errorString) {
-            if (errorString !== "")
-                return;
-            root.volume = value;
-            root.muted = isMuted;
-        }
-
-        function onVolumeSetFinished(value, success, errorString) {
-            if (!success || errorString !== "")
-                return;
-            root.volume = value;
+        function onVolumeChanged() {
+            root.volume = VolumeService.volume;
+            root.muted = VolumeService.muted;
         }
     }
 

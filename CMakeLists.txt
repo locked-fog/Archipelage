@@ -34,6 +34,8 @@ set(ARCHIPELAGO_BACKEND_SOURCES
     backend/SysBackend.cpp
     backend/SystemServices.h
     backend/SystemServices.cpp
+    backend/VolumeService.h
+    backend/VolumeService.cpp
 )
 
 add_executable(archipelago_config_tests
@@ -109,6 +111,23 @@ target_link_libraries(battery_service_tests PRIVATE
 )
 
 add_test(NAME battery_service COMMAND battery_service_tests)
+
+add_executable(volume_service_tests
+    tests/volume_service_tests.cpp
+    backend/VolumeService.h
+    backend/VolumeService.cpp
+)
+
+target_include_directories(volume_service_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+)
+
+target_link_libraries(volume_service_tests PRIVATE
+    Qt6::Core
+    Qt6::Test
+)
+
+add_test(NAME volume_service COMMAND volume_service_tests)
 
 qt_add_qml_module(ArchipelagoBackend
     URI ArchipelagoBackend
