@@ -20,6 +20,8 @@ enable_testing()
 set(ARCHIPELAGO_BACKEND_SOURCES
     backend/ArchipelagoConfig.h
     backend/ArchipelagoConfig.cpp
+    backend/BatteryService.h
+    backend/BatteryService.cpp
     backend/CompositorProvider.h
     backend/CompositorProvider.cpp
     backend/NiriCompositorService.h
@@ -88,6 +90,25 @@ target_link_libraries(plugin_scanner_tests PRIVATE
 )
 
 add_test(NAME plugin_scanner COMMAND plugin_scanner_tests)
+
+add_executable(battery_service_tests
+    tests/battery_service_tests.cpp
+    backend/BatteryService.h
+    backend/BatteryService.cpp
+)
+
+target_include_directories(battery_service_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+)
+
+target_link_libraries(battery_service_tests PRIVATE
+    Qt6::Core
+    Qt6::DBus
+    Qt6::Test
+    ${UDEV_LIB}
+)
+
+add_test(NAME battery_service COMMAND battery_service_tests)
 
 qt_add_qml_module(ArchipelagoBackend
     URI ArchipelagoBackend

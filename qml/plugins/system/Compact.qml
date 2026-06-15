@@ -11,9 +11,9 @@ Item {
     property bool muted: false
 
     function batteryIcon() {
-        if (SysBackend.batteryStatus === "Charging")
+        if (BatteryService.status === "Charging")
             return "AC";
-        if (SysBackend.batteryCapacity <= 20)
+        if (BatteryService.capacity <= 20)
             return "BAT";
         return "BAT";
     }
@@ -72,8 +72,8 @@ Item {
         }
 
         Text {
-            text: batteryIcon() + " " + SysBackend.batteryCapacity + "%"
-            color: SysBackend.batteryCapacity > 0 && SysBackend.batteryCapacity <= 20
+            text: batteryIcon() + " " + BatteryService.capacity + "%"
+            color: BatteryService.capacity > 0 && BatteryService.capacity <= 20
                 ? StyleTokens.warning
                 : StyleTokens.textPrimary
             font.pixelSize: 12
