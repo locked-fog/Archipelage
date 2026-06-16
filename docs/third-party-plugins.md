@@ -27,10 +27,10 @@ UI plugins use the same structure as the built-in `Time` example:
 
 Archipelago scans these roots in order:
 
-1. `$ARCHIPELAGO_PLUGINS_DIR` if set. This is a full override.
+1. `$ARCHIPELAGO_PLUGINS_DIR` if set. This overrides the user/system third-party roots below.
 2. `$XDG_DATA_HOME/archipelago/plugins`, or `~/.local/share/archipelago/plugins`.
 3. `$XDG_DATA_DIRS/archipelago/plugins`, defaulting to `/usr/share/archipelago/plugins` and `/usr/local/share/archipelago/plugins`.
-4. The development and installed built-in roots under `qml/plugins`, currently only the `Time` example.
+4. The development and installed built-in roots under `qml/plugins`, currently only the `Time` example. These roots are still scanned when `$ARCHIPELAGO_PLUGINS_DIR` is set, so the built-in `Time` plugin remains available unless an earlier root provides the same manifest `id`.
 
 When multiple roots provide the same manifest `id`, the first one wins.
 
