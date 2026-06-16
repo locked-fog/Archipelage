@@ -159,3 +159,8 @@ repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Acknowledgements
+
+Archipelago's dark capsule visual direction is inspired by
+[enhaoswen/Tide-island](https://github.com/enhaoswen/Tide-island).

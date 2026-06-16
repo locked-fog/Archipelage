@@ -161,7 +161,6 @@ Item {
             if (item)
                 item.closeExpanded();
         }
-        expandedModule = "";
         bumpExpandedGeometry();
     }
 

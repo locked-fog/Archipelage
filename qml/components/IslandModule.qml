@@ -31,13 +31,24 @@ Item {
     readonly property real expandedMaskY: expandedSurface.maskY
     readonly property real expandedMaskWidth: expandedSurface.maskWidth
     readonly property real expandedMaskHeight: expandedSurface.maskHeight
+    readonly property bool compactVisible: !expanded || expandedSurface.collapsed
     readonly property var moduleConfig: ArchipelagoConfig.moduleConfig(moduleId)
     readonly property int configuredWidth: Number(moduleConfig.width || 120)
 
     width: configuredWidth
     height: ArchipelagoConfig.islandHeight
-    opacity: expanded ? 0 : 1
-    enabled: !expanded
+    opacity: compactVisible ? 1 : 0
+    enabled: !expanded && !expandedSurface.mounted
+
+    Behavior on opacity {
+        enabled: !expandedSurface.collapsed
+
+        NumberAnimation {
+            duration: ArchipelagoConfig.compactFadeDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: capsule.fadeCurve
+        }
+    }
 
     function invokeHandler(name, ...args) {
         const item = compactLoader.item;

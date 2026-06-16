@@ -1,5 +1,15 @@
 tide-island-niri/
 
+# Local assistant and harness state
+.claude/
+.codex/
+.agents/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
 # CMake/build outputs
 build/
 build-*/
@@ -56,6 +66,7 @@ src/
 
 # Local runtime/cache artifacts
 .cache/
+*.log
 
 # IDEs/editors
 .vscode/

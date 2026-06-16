@@ -10,10 +10,15 @@ Rectangle {
     property bool opened: false
     property bool contentVisible: false
     property bool geometryAnimationEnabled: false
+    property bool closing: false
+    property bool collapsed: false
+    property bool collapseFadeVisible: true
     property bool hovered: surfaceArea.containsMouse
     readonly property var morphPositionCurve: [0.16, 1, 0.3, 1, 1, 1]
     readonly property var morphSizeCurve: [0.22, 1, 0.36, 1, 1, 1]
     readonly property var fadeCurve: [0.33, 1, 0.68, 1, 1, 1]
+    readonly property int collapseFadeDelay: 50
+    readonly property int collapseFadeDuration: Math.max(120, Math.round(ArchipelagoConfig.morphDuration * 0.28))
     property real originX: 0
     property real originY: 0
     property real originWidth: ArchipelagoConfig.islandHeight
@@ -38,7 +43,7 @@ Rectangle {
     width: opened ? targetWidth : originWidth
     height: opened ? targetHeight : originHeight
     radius: opened ? StyleTokens.radiusPanel : originHeight / 2
-    opacity: mounted ? 1 : 0
+    opacity: mounted && collapseFadeVisible ? 1 : 0
     visible: mounted || opacity > 0
     color: StyleTokens.panel
     border.width: opened ? 1 : 0
@@ -71,8 +76,13 @@ Rectangle {
 
     function openModule(nextModuleId, originRect) {
         cleanupTimer.stop();
+        collapseSettledTimer.stop();
+        collapseFadeDelayTimer.stop();
         revealTimer.stop();
         geometryAnimationEnabled = false;
+        closing = false;
+        collapsed = false;
+        collapseFadeVisible = true;
         moduleId = nextModuleId;
         originX = originRect.x;
         originY = originRect.y;
@@ -92,9 +102,13 @@ Rectangle {
     }
 
     function close() {
-        if (!mounted)
+        if (!mounted || closing)
             return;
         revealTimer.stop();
+        closing = true;
+        collapsed = false;
+        collapseFadeVisible = true;
+        collapseSettledTimer.restart();
         contentVisible = false;
         geometryAnimationEnabled = true;
         opened = false;
@@ -143,7 +157,7 @@ Rectangle {
     }
     Behavior on opacity {
         NumberAnimation {
-            duration: 120
+            duration: root.collapseFadeDuration
             easing.type: Easing.BezierSpline
             easing.bezierCurve: root.fadeCurve
         }
@@ -160,14 +174,35 @@ Rectangle {
     Timer {
         id: cleanupTimer
 
-        interval: ArchipelagoConfig.morphDuration + 40
+        interval: ArchipelagoConfig.morphDuration + root.collapseFadeDelay + root.collapseFadeDuration + 40
         repeat: false
         onTriggered: {
             root.geometryAnimationEnabled = false;
             root.mounted = false;
             root.moduleId = "";
             root.closed();
+            root.closing = false;
+            root.collapsed = false;
         }
+    }
+
+    Timer {
+        id: collapseSettledTimer
+
+        interval: ArchipelagoConfig.morphDuration
+        repeat: false
+        onTriggered: {
+            root.collapsed = true;
+            collapseFadeDelayTimer.restart();
+        }
+    }
+
+    Timer {
+        id: collapseFadeDelayTimer
+
+        interval: root.collapseFadeDelay
+        repeat: false
+        onTriggered: root.collapseFadeVisible = false
     }
 
     MouseArea {
