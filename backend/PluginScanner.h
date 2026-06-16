@@ -44,7 +44,8 @@
 //
 // Search path resolution:
 //   1. $ARCHIPELAGO_PLUGINS_DIR
-//      If set, this remains a full override and no other roots are scanned.
+//      If set, this overrides user/system third-party roots. Built-in roots
+//      are still appended so the core Time plugin remains available.
 //   2. $XDG_DATA_HOME/archipelago/plugins
 //      (or ~/.local/share/archipelago/plugins)
 //   3. $XDG_DATA_DIRS/archipelago/plugins
@@ -52,9 +53,9 @@
 //   4. $PWD/qml/plugins/                (dev runs from project root)
 //   5. <install prefix>/share/archipelago/qml/plugins
 //
-// Without an override, roots are scanned in order and the first plugin
-// id wins. This lets user/system plugins coexist with built-ins while
-// keeping deterministic precedence.
+// Roots are scanned in order and the first plugin id wins. This lets
+// user/system/override plugins coexist with built-ins while keeping
+// deterministic precedence.
 class PluginScanner : public QObject {
     Q_OBJECT
     QML_ELEMENT

@@ -16,6 +16,7 @@ private:
     QString m_userPluginsPath;
     QString m_systemDataDir;
     QString m_systemPluginsPath;
+    QString m_builtinPluginsPath;
     QString m_basePath;
 
     void resetDir(const QString &path)
@@ -72,6 +73,7 @@ private slots:
         m_userPluginsPath = m_userDataHome + QStringLiteral("/archipelago/plugins");
         m_systemDataDir = m_tempDir.path() + QStringLiteral("/xdg_system");
         m_systemPluginsPath = m_systemDataDir + QStringLiteral("/archipelago/plugins");
+        m_builtinPluginsPath = m_tempDir.path() + QStringLiteral("/builtins");
 
         const QString isolatedCwd = m_tempDir.path() + QStringLiteral("/cwd");
         QVERIFY(QDir().mkpath(isolatedCwd));
@@ -87,9 +89,11 @@ private slots:
         QDir().mkpath(m_userDataHome);
         QDir(m_systemDataDir).removeRecursively();
         QDir().mkpath(m_systemDataDir);
+        resetDir(m_builtinPluginsPath);
 
         qputenv("XDG_DATA_HOME", m_userDataHome.toLocal8Bit());
         qputenv("XDG_DATA_DIRS", m_systemDataDir.toLocal8Bit());
+        qunsetenv("ARCHIPELAGO_BUILTIN_PLUGINS_DIR");
         useEnvOverride();
     }
 
@@ -137,6 +141,19 @@ private slots:
         QVERIFY(!scanner.manifestFor("env-only").isEmpty());
         QVERIFY(scanner.manifestFor("user-only").isEmpty());
         QCOMPARE(scanner.plugins().size(), 1);
+    }
+
+    void envPluginDirectoryKeepsBuiltInRoots()
+    {
+        m_basePath = m_builtinPluginsPath;
+        writePluginDir("time", R"({"id": "time", "label": "Time"})", true, true);
+        qputenv("ARCHIPELAGO_BUILTIN_PLUGINS_DIR", m_builtinPluginsPath.toLocal8Bit());
+
+        useEnvOverride();
+        PluginScanner scanner;
+        QVERIFY(!scanner.manifestFor("time").isEmpty());
+        QCOMPARE(scanner.manifestFor("time").value("directoryPath").toString(),
+                 m_builtinPluginsPath + QStringLiteral("/time"));
     }
 
     void manifestParsedWithAllFields()

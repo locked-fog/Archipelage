@@ -34,6 +34,9 @@ Item {
     readonly property bool compactVisible: !expanded || expandedSurface.collapsed
     readonly property var moduleConfig: ArchipelagoConfig.moduleConfig(moduleId)
     readonly property int configuredWidth: Number(moduleConfig.width || 120)
+    readonly property var moduleRegistrySnapshot: root.host && root.host.shellWindow
+        ? root.host.shellWindow.moduleRegistry
+        : ({})
 
     width: configuredWidth
     height: ArchipelagoConfig.islandHeight
@@ -97,7 +100,9 @@ Item {
         Loader {
             id: compactLoader
             anchors.fill: parent
-            sourceComponent: root.host
+            readonly property var registryDependency: root.moduleRegistrySnapshot
+
+            sourceComponent: registryDependency !== undefined && root.host
                 ? (root.host.compactFor(root.moduleId) || fallbackCompact)
                 : fallbackCompact
         }

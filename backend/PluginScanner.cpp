@@ -100,47 +100,51 @@ QVariantList parsePreviewTemplates(const QJsonObject &object)
     return result;
 }
 
-QStringList pluginSearchPaths()
+void appendPath(QStringList &paths, const QString &path)
 {
-    QStringList paths;
+    if (!path.trimmed().isEmpty())
+        paths << path;
+}
 
-    const QByteArray envOverride = qgetenv("ARCHIPELAGO_PLUGINS_DIR");
-    if (!envOverride.isEmpty()) {
-        paths << QString::fromLocal8Bit(envOverride);
-        return paths;
-    }
+void appendPluginRoots(QStringList &paths, const QString &rawPaths)
+{
+    const QStringList entries = rawPaths.split(QLatin1Char(':'), Qt::SkipEmptyParts);
+    for (const QString &entry : entries)
+        appendPath(paths, entry);
+}
 
-    const QByteArray xdgDataHome = qgetenv("XDG_DATA_HOME");
-    const QString userDataHome = !xdgDataHome.isEmpty()
-        ? QString::fromLocal8Bit(xdgDataHome)
-        : QDir::homePath() + QStringLiteral("/.local/share");
-    paths << userDataHome + QStringLiteral("/archipelago/plugins");
+void appendBuiltInPluginRoots(QStringList &paths)
+{
+    const QByteArray envBuiltIns = qgetenv("ARCHIPELAGO_BUILTIN_PLUGINS_DIR");
+    if (!envBuiltIns.isEmpty())
+        appendPluginRoots(paths, QString::fromLocal8Bit(envBuiltIns));
 
-    const QByteArray xdgDataDirs = qgetenv("XDG_DATA_DIRS");
-    const QStringList systemDataDirs = !xdgDataDirs.isEmpty()
-        ? QString::fromLocal8Bit(xdgDataDirs).split(QLatin1Char(':'), Qt::SkipEmptyParts)
-        : QStringList({
-              QStringLiteral("/usr/share"),
-              QStringLiteral("/usr/local/share")
-          });
-    for (const QString &dataDir : systemDataDirs)
-        paths << dataDir + QStringLiteral("/archipelago/plugins");
+    appendPath(paths, QDir::currentPath() + QStringLiteral("/qml/plugins"));
 
-    paths << QDir::currentPath() + QStringLiteral("/qml/plugins");
+#ifdef ARCHIPELAGO_SOURCE_PLUGINS_DIR
+    appendPath(paths, QStringLiteral(ARCHIPELAGO_SOURCE_PLUGINS_DIR));
+#endif
 
     // The CMake install rule puts the qml tree under
     // <prefix>/share/archipelago/qml. We resolve <prefix> via the
-    // binary location and fall back to well-known system install roots.
+    // binary location and fall back to the configured install root and
+    // well-known system install roots.
     const QString appDir = QCoreApplication::applicationDirPath();
     const QStringList installCandidates = {
         appDir + QStringLiteral("/../share/archipelago/qml/plugins"),
         appDir + QStringLiteral("/../../share/archipelago/qml/plugins"),
+#ifdef ARCHIPELAGO_INSTALL_PLUGINS_DIR
+        QStringLiteral(ARCHIPELAGO_INSTALL_PLUGINS_DIR),
+#endif
         QStringLiteral("/usr/share/archipelago/qml/plugins"),
         QStringLiteral("/usr/local/share/archipelago/qml/plugins")
     };
     for (const QString &candidate : installCandidates)
-        paths << candidate;
+        appendPath(paths, candidate);
+}
 
+QStringList uniqueCleanedPaths(const QStringList &paths)
+{
     QStringList uniquePaths;
     QSet<QString> seen;
     for (const QString &path : paths) {
@@ -151,6 +155,37 @@ QStringList pluginSearchPaths()
         uniquePaths << cleaned;
     }
     return uniquePaths;
+}
+
+QStringList pluginSearchPaths()
+{
+    QStringList paths;
+
+    const QByteArray envOverride = qgetenv("ARCHIPELAGO_PLUGINS_DIR");
+    if (!envOverride.isEmpty()) {
+        appendPluginRoots(paths, QString::fromLocal8Bit(envOverride));
+        appendBuiltInPluginRoots(paths);
+        return uniqueCleanedPaths(paths);
+    }
+
+    const QByteArray xdgDataHome = qgetenv("XDG_DATA_HOME");
+    const QString userDataHome = !xdgDataHome.isEmpty()
+        ? QString::fromLocal8Bit(xdgDataHome)
+        : QDir::homePath() + QStringLiteral("/.local/share");
+    appendPath(paths, userDataHome + QStringLiteral("/archipelago/plugins"));
+
+    const QByteArray xdgDataDirs = qgetenv("XDG_DATA_DIRS");
+    const QStringList systemDataDirs = !xdgDataDirs.isEmpty()
+        ? QString::fromLocal8Bit(xdgDataDirs).split(QLatin1Char(':'), Qt::SkipEmptyParts)
+        : QStringList({
+              QStringLiteral("/usr/share"),
+              QStringLiteral("/usr/local/share")
+          });
+    for (const QString &dataDir : systemDataDirs)
+        appendPath(paths, dataDir + QStringLiteral("/archipelago/plugins"));
+
+    appendBuiltInPluginRoots(paths);
+    return uniqueCleanedPaths(paths);
 }
 
 QVariantMap fallbackEntry(const QString &absoluteDirPath, const QString &id)

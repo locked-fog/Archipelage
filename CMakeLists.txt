@@ -8,8 +8,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Network DBus Test Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network DBus Test Concurrent)
 find_library(UDEV_LIB NAMES udev REQUIRED)
+
+include(GNUInstallDirs)
 
 if(COMMAND qt_policy)
     qt_policy(SET QTP0001 NEW)
@@ -100,6 +102,25 @@ target_link_libraries(plugin_scanner_tests PRIVATE
 
 add_test(NAME plugin_scanner COMMAND plugin_scanner_tests)
 
+add_executable(archipelago_qml_tests
+    tests/archipelago_qml_tests.cpp
+)
+
+target_compile_definitions(archipelago_qml_tests PRIVATE
+    ARCHIPELAGO_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    ARCHIPELAGO_BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}"
+)
+
+target_link_libraries(archipelago_qml_tests PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::Test
+)
+
+add_test(NAME archipelago_qml COMMAND archipelago_qml_tests)
+
 add_executable(battery_service_tests
     tests/battery_service_tests.cpp
     backend/BatteryService.h
@@ -182,6 +203,11 @@ target_include_directories(ArchipelagoCore PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/backend
 )
 
+target_compile_definitions(ArchipelagoCore PRIVATE
+    ARCHIPELAGO_SOURCE_PLUGINS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml/plugins"
+    ARCHIPELAGO_INSTALL_PLUGINS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/archipelago/qml/plugins"
+)
+
 target_link_libraries(ArchipelagoCore PRIVATE
     Qt6::Core
     Qt6::Gui
@@ -200,6 +226,11 @@ target_include_directories(ArchipelagoBackend PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/backend
 )
 
+target_compile_definitions(ArchipelagoBackend PRIVATE
+    ARCHIPELAGO_SOURCE_PLUGINS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml/plugins"
+    ARCHIPELAGO_INSTALL_PLUGINS_DIR="${CMAKE_INSTALL_FULL_DATADIR}/archipelago/qml/plugins"
+)
+
 target_link_libraries(ArchipelagoBackend PRIVATE
     Qt6::Core
     Qt6::Gui
@@ -209,8 +240,6 @@ target_link_libraries(ArchipelagoBackend PRIVATE
     Qt6::Concurrent
     ${UDEV_LIB}
 )
-
-include(GNUInstallDirs)
 
 configure_file(
     packaging/pacman/archipelago-cleanup-plugins.hook.in

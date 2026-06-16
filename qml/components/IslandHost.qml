@@ -36,7 +36,7 @@ Item {
                 configured.push(list[index]);
         }
         const configuredIds = configuredModuleIds();
-        const entries = parent && parent.moduleRegistry ? parent.moduleRegistry : {};
+        const entries = shellWindow && shellWindow.moduleRegistry ? shellWindow.moduleRegistry : {};
         const manifestDefaults = [];
         const ids = Object.keys(entries);
         for (let index = 0; index < ids.length; index++) {
@@ -78,7 +78,7 @@ Item {
         const config = moduleConfig(moduleId);
         if (config.priority !== undefined)
             return Number(config.priority || 0);
-        const entry = parent && parent.moduleEntry ? parent.moduleEntry(moduleId) : {};
+        const entry = shellWindow && shellWindow.moduleEntry ? shellWindow.moduleEntry(moduleId) : {};
         return Number(entry.defaultPriority || 0);
     }
 
@@ -91,11 +91,11 @@ Item {
     }
 
     function compactFor(moduleId) {
-        return parent && parent.compactComponentFor ? parent.compactComponentFor(moduleId) : null;
+        return shellWindow && shellWindow.compactComponentFor ? shellWindow.compactComponentFor(moduleId) : null;
     }
 
     function expandedFor(moduleId) {
-        return parent && parent.expandedComponentFor ? parent.expandedComponentFor(moduleId) : null;
+        return shellWindow && shellWindow.expandedComponentFor ? shellWindow.expandedComponentFor(moduleId) : null;
     }
 
     function activateModule(moduleId, item) {
