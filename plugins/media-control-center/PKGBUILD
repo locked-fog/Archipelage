@@ -1,0 +1,40 @@
+# Maintainer: Locked_Fog <aboxyxy@outlook.com>
+
+pkgname=archipelago-plugin-media-control-center
+pkgver=0.1.0
+pkgrel=5
+pkgdesc="MPRIS media control center plugin for Archipelago"
+arch=('x86_64')
+url="https://github.com/Locked-Fog/Archipelago"
+license=('MIT')
+depends=(
+  'archipelago>=1.0.0'
+  'qt6-base'
+  'qt6-declarative'
+)
+makedepends=(
+  'cmake'
+  'ninja'
+)
+checkdepends=(
+  'qt6-base'
+)
+options=('!debug')
+source=("${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cmake -S "$srcdir/$pkgname-$pkgver" -B build \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr
+  cmake --build build
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}
