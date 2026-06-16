@@ -9,6 +9,7 @@ import ArchipelagoBackend
 // Wire protocol with a plugin Compact.qml:
 //   property int    compactLevel     (framework-injected)
 //   property string moduleId         (framework-injected; null-safe)
+//   property var    shellWindow      (framework-injected, optional)
 //   property var    handlers         (plugin-set, optional)
 //       handlers.primaryClicked()                  -> bool
 //       handlers.secondaryClicked(action: string)   -> bool
@@ -103,6 +104,14 @@ Item {
             property: "moduleId"
             value: root.moduleId
             when: compactLoader.item && compactLoader.item.moduleId !== undefined
+            restoreMode: Binding.RestoreNone
+        }
+
+        Binding {
+            target: compactLoader.item
+            property: "shellWindow"
+            value: root.host ? root.host.shellWindow : null
+            when: compactLoader.item && compactLoader.item.shellWindow !== undefined
             restoreMode: Binding.RestoreNone
         }
 

@@ -328,6 +328,8 @@ Item {
                     item.instanceId = instanceId;
                 if (item.previewController !== undefined)
                     item.previewController = root;
+                if (item.shellWindow !== undefined)
+                    item.shellWindow = root.shellWindow;
             }
 
             function destroyContent() {

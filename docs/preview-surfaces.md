@@ -30,10 +30,15 @@ Plugins register one or more preview layouts in `manifest.json`:
 
 ## Runtime API
 
-Shell code calls:
+Compact and expanded plugin components can declare `property var shellWindow: null`
+and call the shell-owned preview API:
 
 ```qml
-previewController.show(pluginId, templateId, payload, options)
+shellWindow.showPreview(moduleId, "message", {
+  sourceName: "Mail",
+  title: "New message",
+  body: "Quarterly update is ready"
+})
 ```
 
 The framework owns lifecycle, stacking, origin geometry, timeout, and focus. The template owns rendering and interprets the payload. Standard payload fields are:
@@ -51,8 +56,12 @@ Templates can also receive:
 - `payload`
 - `instanceId`
 - `previewController`
+- `shellWindow`
 
-`options.originRect` can point at any shell-local rectangle. Use the module capsule for notification-style previews, or pass `shellWindow.originRectForItem(control)` from an expanded panel when a preview should grow from a specific button, row, or sub-control.
+`options.originRect` can point at any shell-local rectangle. If omitted, the preview grows from the module capsule. Pass `shellWindow.originRectForItem(control)` from an expanded panel when a preview should grow from a specific button, row, or sub-control.
+
+The returned instance id can be passed to `shellWindow.dismissPreview(instanceId)`.
+Use `shellWindow.dismissPreviewLayout(moduleId, templateId)` to clear one preview stack.
 
 ## Stacking
 

@@ -151,7 +151,7 @@ Archipelago 的 MVP 不应先移植 Hyprland overview，而应围绕 niri 的实
 
 ## 7. 默认岛群
 
-MVP 默认布局建议：
+当前 core 包默认只内置 `Time` 插件，作为第三方插件形态的参考实现。下面是面向完整插件生态的默认布局建议，`Workspaces`、`Media`、`System Cluster` 和 `Notifications` 应由第三方插件提供：
 
 | 锚点 | 岛 | Compact | Expanded |
 | --- | --- | --- | --- |
@@ -165,7 +165,7 @@ MVP 默认布局建议：
 
 ## 8. 布局模型
 
-布局配置应表达“锚点 + 顺序 + 优先级”：
+布局配置应表达“锚点 + 顺序 + 优先级”。core 包当前示例配置只启用 `time`；安装第三方插件后可以把对应模块 id 加入锚点：
 
 ```json
 {

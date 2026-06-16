@@ -44,6 +44,27 @@ PanelWindow {
         return templates[templateId] || null;
     }
 
+    function showPreview(moduleId, templateId, payload, options) {
+        if (!moduleId || !templateId)
+            return "";
+
+        const opts = {};
+        const sourceOptions = options || {};
+        for (const key in sourceOptions)
+            opts[key] = sourceOptions[key];
+        if (!opts.originRect)
+            opts.originRect = originRectForModule(moduleId);
+        return previewController.show(moduleId, templateId, payload || {}, opts);
+    }
+
+    function dismissPreview(instanceId) {
+        previewController.dismiss(instanceId || "");
+    }
+
+    function dismissPreviewLayout(moduleId, templateId) {
+        previewController.dismissLayout(moduleId || "", templateId || "");
+    }
+
     function preferredExpandedWidth(moduleId) {
         const preferred = moduleEntry(moduleId).preferredWidth;
         return preferred && preferred > 0 ? preferred : ArchipelagoConfig.expandedWidth;
