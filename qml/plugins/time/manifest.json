@@ -1,6 +1,6 @@
 {
-  "id": "clock",
-  "label": "Clock",
+  "id": "time",
+  "label": "Time",
   "version": "1.0.0",
   "anchors": ["center"],
   "defaultPriority": 50,

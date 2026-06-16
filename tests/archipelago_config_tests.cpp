@@ -49,19 +49,20 @@ void ArchipelagoConfigTests::exposesArchipelagoConfigPathAndDefaults()
 
     QCOMPARE(config.userConfigPath(), configHome.path() + QStringLiteral("/archipelago/config.json"));
     QCOMPARE(config.configError(), QString());
-    QCOMPARE(config.anchorModules(QStringLiteral("left")), QVariantList({QStringLiteral("workspaces")}));
-    QCOMPARE(config.anchorModules(QStringLiteral("center")), QVariantList({QStringLiteral("clock")}));
-    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList({QStringLiteral("media"), QStringLiteral("system")}));
-    QCOMPARE(config.anchorModules(QStringLiteral("overlay")), QVariantList({QStringLiteral("notifications")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("left")), QVariantList());
+    QCOMPARE(config.anchorModules(QStringLiteral("center")), QVariantList({QStringLiteral("time")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList());
+    QCOMPARE(config.anchorModules(QStringLiteral("overlay")), QVariantList());
     QCOMPARE(config.islandHeight(), 38);
     QCOMPARE(config.islandGap(), 10);
     QCOMPARE(config.textFontFamily(), QStringLiteral("Inter Display"));
     QCOMPARE(config.iconFontFamily(), QStringLiteral("JetBrainsMono Nerd Font"));
 
-    const QVariantMap workspace = moduleConfig(config, QStringLiteral("workspaces"));
-    QCOMPARE(workspace.value(QStringLiteral("enabled")).toBool(), true);
-    QCOMPARE(workspace.value(QStringLiteral("priority")).toInt(), 90);
-    QCOMPARE(workspace.value(QStringLiteral("compact")).toString(), QStringLiteral("focused"));
+    const QVariantMap time = moduleConfig(config, QStringLiteral("time"));
+    QCOMPARE(time.value(QStringLiteral("enabled")).toBool(), true);
+    QCOMPARE(time.value(QStringLiteral("priority")).toInt(), 50);
+    QCOMPARE(time.value(QStringLiteral("compact")).toString(), QStringLiteral("time"));
+    QCOMPARE(time.value(QStringLiteral("width")).toInt(), 108);
 }
 
 void ArchipelagoConfigTests::loadsAnchorsModulesFontsAndSizes()
@@ -72,19 +73,19 @@ void ArchipelagoConfigTests::loadsAnchorsModulesFontsAndSizes()
 
     const QByteArray json = R"json({
         "anchors": {
-            "left": ["clock", "workspaces"],
+            "left": ["time", "community.workspaces"],
             "center": [],
-            "right": ["system"],
-            "overlay": ["notifications"]
+            "right": ["community.system"],
+            "overlay": ["community.notifications"]
         },
         "modules": {
-            "clock": {
+            "time": {
                 "enabled": true,
                 "priority": 75,
                 "compact": "date",
                 "actions": { "primary": "toggle", "secondary": "calendar" }
             },
-            "media": { "enabled": false }
+            "community.media": { "enabled": false }
         },
         "fonts": {
             "text": "Test Sans",
@@ -118,9 +119,10 @@ void ArchipelagoConfigTests::loadsAnchorsModulesFontsAndSizes()
     ArchipelagoConfig config;
 
     QCOMPARE(config.configError(), QString());
-    QCOMPARE(config.anchorModules(QStringLiteral("left")), QVariantList({QStringLiteral("clock"), QStringLiteral("workspaces")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("left")), QVariantList({QStringLiteral("time"), QStringLiteral("community.workspaces")}));
     QCOMPARE(config.anchorModules(QStringLiteral("center")), QVariantList());
-    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList({QStringLiteral("system")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList({QStringLiteral("community.system")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("overlay")), QVariantList({QStringLiteral("community.notifications")}));
     QCOMPARE(config.textFontFamily(), QStringLiteral("Test Sans"));
     QCOMPARE(config.iconFontFamily(), QStringLiteral("Test Nerd"));
     QCOMPARE(config.timeFontFamily(), QStringLiteral("Test Mono"));
@@ -139,14 +141,14 @@ void ArchipelagoConfigTests::loadsAnchorsModulesFontsAndSizes()
     QCOMPARE(config.styleOverride(QStringLiteral("panel")), QStringLiteral("#010203"));
     QCOMPARE(config.compositor(), QStringLiteral("niri"));
 
-    const QVariantMap clock = moduleConfig(config, QStringLiteral("clock"));
-    QCOMPARE(clock.value(QStringLiteral("priority")).toInt(), 75);
-    QCOMPARE(clock.value(QStringLiteral("compact")).toString(), QStringLiteral("date"));
-    QCOMPARE(config.moduleAction(QStringLiteral("clock"), QStringLiteral("secondary")), QStringLiteral("calendar"));
+    const QVariantMap time = moduleConfig(config, QStringLiteral("time"));
+    QCOMPARE(time.value(QStringLiteral("priority")).toInt(), 75);
+    QCOMPARE(time.value(QStringLiteral("compact")).toString(), QStringLiteral("date"));
+    QCOMPARE(config.moduleAction(QStringLiteral("time"), QStringLiteral("secondary")), QStringLiteral("calendar"));
 
-    const QVariantMap media = moduleConfig(config, QStringLiteral("media"));
+    const QVariantMap media = moduleConfig(config, QStringLiteral("community.media"));
     QCOMPARE(media.value(QStringLiteral("enabled")).toBool(), false);
-    QCOMPARE(media.value(QStringLiteral("priority")).toInt(), 60);
+    QCOMPARE(media.value(QStringLiteral("priority")).toInt(), 0);
 }
 
 void ArchipelagoConfigTests::stripsComments()
@@ -183,7 +185,8 @@ void ArchipelagoConfigTests::reportsInvalidJsonAndKeepsDefaults()
 
     ArchipelagoConfig config;
     QVERIFY(!config.configError().isEmpty());
-    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList({QStringLiteral("media"), QStringLiteral("system")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("center")), QVariantList({QStringLiteral("time")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList());
     QCOMPARE(config.islandHeight(), 38);
     QCOMPARE(config.textFontFamily(), QStringLiteral("Inter Display"));
 }
@@ -195,10 +198,10 @@ void ArchipelagoConfigTests::validatesRangesAndTypes()
     qputenv("XDG_CONFIG_HOME", configHome.path().toLocal8Bit());
 
     const QByteArray json = R"json({
-        "anchors": { "left": "workspaces", "right": ["system", 7, "clock"] },
+        "anchors": { "left": "community.workspaces", "right": ["community.system", 7, "time"] },
         "modules": {
-            "system": { "enabled": "yes", "priority": 140, "compact": 42 },
-            "clock": { "priority": -4 }
+            "community.system": { "enabled": "yes", "priority": 140, "compact": 42 },
+            "time": { "priority": -4 }
         },
         "fonts": {
             "text": "",
@@ -217,19 +220,19 @@ void ArchipelagoConfigTests::validatesRangesAndTypes()
 
     ArchipelagoConfig config;
     QVERIFY(config.configError().contains(QStringLiteral("Invalid")));
-    QCOMPARE(config.anchorModules(QStringLiteral("left")), QVariantList({QStringLiteral("workspaces")}));
-    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList({QStringLiteral("system"), QStringLiteral("clock")}));
+    QCOMPARE(config.anchorModules(QStringLiteral("left")), QVariantList());
+    QCOMPARE(config.anchorModules(QStringLiteral("right")), QVariantList({QStringLiteral("community.system"), QStringLiteral("time")}));
     QCOMPARE(config.textFontFamily(), QStringLiteral("Inter Display"));
     QCOMPARE(config.bodyFontSize(), 16);
     QCOMPARE(config.islandHeight(), 38);
     QCOMPARE(config.islandGap(), 10);
     QCOMPARE(config.expandedWidth(), 520);
-    QCOMPARE(config.morphDuration(), 380);
+    QCOMPARE(config.morphDuration(), 480);
 
-    const QVariantMap system = moduleConfig(config, QStringLiteral("system"));
+    const QVariantMap system = moduleConfig(config, QStringLiteral("community.system"));
     QCOMPARE(system.value(QStringLiteral("enabled")).toBool(), true);
-    QCOMPARE(system.value(QStringLiteral("priority")).toInt(), 80);
-    QCOMPARE(system.value(QStringLiteral("compact")).toString(), QStringLiteral("cluster"));
+    QCOMPARE(system.value(QStringLiteral("priority")).toInt(), 0);
+    QCOMPARE(system.value(QStringLiteral("compact")).toString(), QString());
 }
 
 void ArchipelagoConfigTests::acceptsUnknownPluginModules()

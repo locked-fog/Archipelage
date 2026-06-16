@@ -15,9 +15,8 @@ struct udev_monitor;
 //   - UPower D-Bus properties (preferred when available)
 //   - udev monitor on the power_supply subsystem for live updates
 //
-// This was extracted from the legacy SysBackend. The plugin that owns
-// the system island (qml/plugins/system) consumes capacity / status
-// through this singleton.
+// This was extracted from the legacy SysBackend. External plugins can
+// consume capacity / status through this singleton.
 class BatteryService : public QObject {
     Q_OBJECT
     QML_ELEMENT

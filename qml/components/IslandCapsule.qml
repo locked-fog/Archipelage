@@ -9,6 +9,7 @@ Rectangle {
     property bool interactive: true
     property color fillColor: StyleTokens.panel
     property color borderColor: StyleTokens.transparent
+    readonly property var fadeCurve: [0.33, 1, 0.68, 1, 1, 1]
 
     signal primaryClicked()
     signal secondaryClicked()
@@ -24,13 +25,15 @@ Rectangle {
     Behavior on opacity {
         NumberAnimation {
             duration: ArchipelagoConfig.compactFadeDuration
-            easing.type: Easing.OutCubic
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.fadeCurve
         }
     }
 
     Behavior on color {
         ColorAnimation {
             duration: 130
+            easing.type: Easing.OutCubic
         }
     }
 

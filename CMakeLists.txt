@@ -191,6 +191,12 @@ target_link_libraries(ArchipelagoBackend PRIVATE
 
 include(GNUInstallDirs)
 
+configure_file(
+    packaging/pacman/archipelago-cleanup-plugins.hook.in
+    ${CMAKE_CURRENT_BINARY_DIR}/packaging/pacman/archipelago-cleanup-plugins.hook
+    @ONLY
+)
+
 install(FILES
     shell.qml
     DESTINATION ${CMAKE_INSTALL_DATADIR}/archipelago
@@ -232,5 +238,12 @@ install(FILES
 )
 
 install(PROGRAMS archipelago-launcher DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME archipelago)
+install(PROGRAMS packaging/pacman/archipelago-cleanup-plugins
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/archipelago
+    RENAME cleanup-plugins
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/packaging/pacman/archipelago-cleanup-plugins.hook
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/libalpm/hooks
+)
 install(FILES archipelago.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES archipelago.service DESTINATION /usr/lib/systemd/user)

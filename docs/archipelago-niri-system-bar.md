@@ -108,7 +108,7 @@ Archipelago 的动效要保持 Tide Island 的“液态但克制”：
 - 主 morph：320-420ms，优先 `OutQuint`。
 - 内容淡入淡出：120-280ms。
 - 数值变化：音量、亮度、电量、进度条使用 120-300ms。
-- 临时反馈自动恢复：约 1.2s；通知约 4.2s。
+- 临时反馈自动恢复：约 1.2s；通知 preview 默认 5s。
 - 动画必须服务状态连续性，不为了装饰而持续运动。
 
 ## 5. niri-first 适配原则
@@ -136,7 +136,7 @@ Archipelago 的 MVP 不应先移植 Hyprland overview，而应围绕 niri 的实
 - `ArchipelagoShell`：Quickshell 入口，每屏创建一个 top layer shell。
 - `IslandHost`：管理某个屏幕的岛群布局、输入区域、碰撞、overflow、exclusive zone。
 - `IslandCapsule`：复用 Tide Island 核心胶囊视觉，负责形态、clip、边框、morph 动画。
-- `IslandModule`：模块接口，提供 compact、expanded、transient 三类视图。
+- `IslandModule`：模块接口，提供 compact、expanded 视图；插件可另外通过 manifest 注册 preview template。
 - `NiriCompositorService`：niri-first 数据层，输出不可变 snapshot，封装 IPC reconnect 和事件归一化。
 - `SystemServices`：音量、亮度、电池、网络、蓝牙、通知、MPRIS、录屏等系统数据。
 - `StyleTokens`：颜色、半径、间距、动效时长的唯一来源。
@@ -146,7 +146,7 @@ Archipelago 的 MVP 不应先移植 Hyprland overview，而应围绕 niri 的实
 
 - 一个岛只拥有自己的局部状态，跨岛协调交给 `IslandHost`。
 - 同一时刻可以有多个 compact 岛，但 expanded 态默认只允许一个主展开面板。
-- 临时反馈可以进入专用 transient island，也可以合并进相关岛；不要全局抢占所有岛。
+- 临时反馈进入 `PreviewSurface`，从相关 compact 岛弹出；不要全局抢占所有岛。
 - 数据层对 QML 暴露的是新 snapshot，不要求 QML 直接拼接底层 IPC JSON。
 
 ## 7. 默认岛群
@@ -159,7 +159,7 @@ MVP 默认布局建议：
 | center | Clock | 时间，可带录屏点 | 日期、日历、提醒占位 |
 | center | Media | 播放状态或歌词短句 | 播放器 |
 | right | System Cluster | 电池、音量、网络、蓝牙组合 | 控制中心 |
-| overlay | Notifications | 新通知短胶囊 | 通知详情/历史 |
+| right | Notifications | 常驻通知入口/未读数 | 通知详情/历史 |
 
 默认不要启用太多岛。Archipelago 的第一印象应是安静、可扫描，而不是把 Waybar 的所有模块拆成圆角块。
 
@@ -171,12 +171,12 @@ MVP 默认布局建议：
 {
   "anchors": {
     "left": ["workspaces"],
-    "center": ["clock"],
+    "center": ["time"],
     "right": ["media", "system"]
   },
   "modules": {
     "workspaces": { "enabled": true, "priority": 90 },
-    "clock": { "enabled": true, "priority": 50 },
+    "time": { "enabled": true, "priority": 50 },
     "media": { "enabled": true, "priority": 60 },
     "system": { "enabled": true, "priority": 80 }
   }
@@ -203,7 +203,7 @@ MVP 默认布局建议：
 
 全局规则：
 
-- expanded 面板打开时，其他岛保持 compact，但降低抢占性 transient。
+- expanded 面板打开时，其他岛保持 compact，但降低抢占性 preview。
 - 通知不应覆盖用户正在操作的控制中心或播放器。
 - 需要键盘输入的 Wi-Fi/蓝牙 prompt 才申请 keyboard focus。
 - 所有 `qs ipc` 动作应有模块命名空间，例如 `archipelago workspace next`、`archipelago system toggle`。
@@ -286,7 +286,7 @@ Archipelago MVP 完成时应满足：
 - 不要继续让一个 `mainCapsule` 管理所有状态。
 - 不要把 Hyprland-only overview 当作 niri MVP。
 - 不要把 `islandPositionX` 这类单点定位扩展成所有模块的布局模型。
-- 不要让 transient 状态无条件覆盖用户正在操作的面板。
+- 不要让 passive preview 无条件覆盖用户正在操作的面板。
 - 不要把系统控制中心作为所有系统状态的唯一入口。
 - 不要默认保存 sudo 密码。
 
@@ -310,6 +310,7 @@ Archipelago MVP 完成时应满足：
 - 一屏的岛群管理器：`IslandHost`。
 - niri 数据层：`NiriCompositorService`。
 - 大面板：`ExpandedSurface`，避免叫 popover，强调它从岛生长出来。
+- 预览面板：`PreviewSurface`，用于通知、连接详情、配对确认等 transient/secondary UI。
 
 ## 17. 实施提醒
 

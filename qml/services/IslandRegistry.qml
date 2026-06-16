@@ -7,27 +7,31 @@ import ArchipelagoBackend
 // IslandRegistry just builds the { id → Component } map from the
 // manifest list and watches for rescan notifications.
 //
-// Adding a new built-in module means:
-//   1. drop a directory under qml/plugins/<id>/
-//   2. (optional) write qml/plugins/<id>/manifest.json
-//   3. (optional) write qml/plugins/<id>/Compact.qml
-//   4. (optional) write qml/plugins/<id>/Expanded.qml
+// The core package keeps qml/plugins/time as the code-as-documentation
+// example. Third-party UI modules should be installed under:
+//   ~/.local/share/archipelago/plugins/<id>/
+//   /usr/share/archipelago/plugins/<id>/
+//
+// Plugin directories use the same manifest.json, Compact.qml, and
+// Expanded.qml shape as the time example.
 //
 // No edit to IslandRegistry.qml or ArchipelagoShell.qml is required.
 // Both are now data-driven from PluginScanner.
 Item {
     id: root
 
-    // pluginsBase is exposed for diagnostics; PluginScanner already
-    // resolves it from $ARCHIPELAGO_PLUGINS_DIR / $PWD/qml/plugins /
-    // <install>/share/archipelago/qml/plugins. We mirror it here so
-    // QML can build absolute file URLs from the same root.
+    // pluginsBase is exposed for diagnostics. Each manifest also
+    // carries directoryPath so entries from multiple roots can be
+    // loaded side by side.
     readonly property url pluginsBase: PluginScanner.pluginsBase !== ""
         ? Qt.url("file://" + PluginScanner.pluginsBase)
         : Qt.resolvedUrl("../plugins")
 
     // Public API consumed by ArchipelagoShell:
-    //   entries[id] = { id, compact, expanded, preferredWidth, preferredHeight }
+    //   entries[id] = {
+    //       id, compact, expanded, preferredWidth, preferredHeight,
+    //       previewTemplates: { templateId -> metadata + Component }
+    //   }
     // compact / expanded are Component references (or null if missing
     // or empty in manifest). preferredWidth / preferredHeight of 0 fall
     // back to ArchipelagoConfig.
@@ -61,9 +65,12 @@ Item {
     function loadEntry(manifest) {
         const id = manifest.id;
         const directoryName = manifest.directoryName || id;
-        const dirUrl = pluginsBase + "/" + directoryName + "/";
+        const dirUrl = manifest.directoryPath
+            ? Qt.url("file://" + manifest.directoryPath + "/")
+            : pluginsBase + "/" + directoryName + "/";
         const compact = manifest.compact ? tryLoad(dirUrl + manifest.compact) : { component: null, error: null };
         const expanded = manifest.expanded ? tryLoad(dirUrl + manifest.expanded) : { component: null, error: null };
+        const previewTemplates = loadPreviewTemplates(manifest.previewTemplates || [], dirUrl, id);
 
         if (compact.error)
             console.warn("[IslandRegistry] compact load failed for", id, ":", compact.error);
@@ -79,9 +86,38 @@ Item {
             dataNeeds: manifest.dataNeeds || [],
             compact: compact.component,
             expanded: expanded.component,
+            previewTemplates: previewTemplates,
             preferredWidth: Number(manifest.preferredWidth || 0),
             preferredHeight: Number(manifest.preferredHeight || 0)
         };
+    }
+
+    function loadPreviewTemplates(templateList, dirUrl, pluginId) {
+        const result = {};
+        for (let index = 0; index < templateList.length; index++) {
+            const template = templateList[index] || {};
+            const templateId = template.id || "";
+            const componentFile = template.component || "";
+            if (templateId === "" || componentFile === "")
+                continue;
+
+            const loaded = tryLoad(dirUrl + componentFile);
+            if (loaded.error) {
+                console.warn("[IslandRegistry] preview load failed for", pluginId + "/" + templateId, ":", loaded.error);
+                continue;
+            }
+
+            result[templateId] = {
+                id: templateId,
+                component: loaded.component,
+                defaultWidth: Number(template.defaultWidth || 360),
+                defaultHeight: Number(template.defaultHeight || 112),
+                timeoutMs: Number(template.timeoutMs || 5000),
+                maxVisible: Number(template.maxVisible || 5),
+                focusPolicy: template.focusPolicy || "passive"
+            };
+        }
+        return result;
     }
 
     function tryLoad(url) {

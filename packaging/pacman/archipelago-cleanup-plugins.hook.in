@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Remove
+Type = Package
+Target = archipelago
+
+[Action]
+Description = Cleaning unowned Archipelago plugin directories...
+When = PreTransaction
+Exec = @CMAKE_INSTALL_FULL_LIBDIR@/archipelago/cleanup-plugins

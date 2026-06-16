@@ -97,7 +97,7 @@ private:
         int expandedVerticalOffset = 12;
         int expandedWidth = 520;
         int expandedHeight = 380;
-        int morphDuration = 380;
+        int morphDuration = 480;
         int compactFadeDuration = 150;
         int contentFadeDuration = 180;
         QString compositor;
@@ -127,7 +127,7 @@ private:
     int m_expandedVerticalOffset = 12;
     int m_expandedWidth = 520;
     int m_expandedHeight = 380;
-    int m_morphDuration = 380;
+    int m_morphDuration = 480;
     int m_compactFadeDuration = 150;
     int m_contentFadeDuration = 180;
     QString m_compositor;

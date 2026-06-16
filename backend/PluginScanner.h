@@ -7,8 +7,8 @@
 #include <QVariantMap>
 #include <QtQml/qqml.h>
 
-// Discovers business-module plugins under the configured plugins base
-// directory and exposes their manifests to QML.
+// Discovers business-module plugins under the configured plugin roots
+// and exposes their manifests to QML.
 //
 // Plugin directory layout (one directory per plugin):
 //   <pluginsBase>/<id>/
@@ -18,8 +18,8 @@
 //
 // manifest.json schema (all fields optional):
 //   {
-//     "id":              "workspaces",        // defaults to directory name
-//     "label":           "Workspaces",        // human-readable
+//     "id":              "time",              // defaults to directory name
+//     "label":           "Time",              // human-readable
 //     "version":         "1.0.0",
 //     "anchors":         ["left", "center"],  // hint for the host
 //     "defaultPriority": 90,                  // used when config omits priority
@@ -35,16 +35,26 @@
 // The exposed entry always includes both:
 //   id            stable plugin id consumed by config / registry
 //   directoryName actual directory used to resolve Compact.qml / Expanded.qml
+//   directoryPath absolute plugin directory for QML component loading
 //
 // If manifest.json is missing or unparseable the scanner falls back to
 // the directory-name + "Compact.qml"/"Expanded.qml" convention so that
 // dropping a new directory under pluginsBase is enough to register a
 // plugin.
 //
-// Search path resolution (first existing path wins):
+// Search path resolution:
 //   1. $ARCHIPELAGO_PLUGINS_DIR
-//   2. $PWD/qml/plugins/                (dev runs from project root)
-//   3. <install prefix>/share/archipelago/qml/plugins
+//      If set, this remains a full override and no other roots are scanned.
+//   2. $XDG_DATA_HOME/archipelago/plugins
+//      (or ~/.local/share/archipelago/plugins)
+//   3. $XDG_DATA_DIRS/archipelago/plugins
+//      (defaults to /usr/share and /usr/local/share)
+//   4. $PWD/qml/plugins/                (dev runs from project root)
+//   5. <install prefix>/share/archipelago/qml/plugins
+//
+// Without an override, roots are scanned in order and the first plugin
+// id wins. This lets user/system plugins coexist with built-ins while
+// keeping deterministic precedence.
 class PluginScanner : public QObject {
     Q_OBJECT
     QML_ELEMENT

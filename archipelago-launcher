@@ -2,4 +2,13 @@
 # Launcher for the Archipelago Quickshell system shell.
 
 QML_PATH="${ARCHIPELAGO_QML_PATH:-/usr/share/archipelago}"
+ARCHIPELAGO_USER_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+ARCHIPELAGO_QML_IMPORT_PATH="${ARCHIPELAGO_USER_DATA_HOME}/archipelago/qml:/usr/share/archipelago/qml:/usr/local/share/archipelago/qml"
+
+if [ -n "${QML2_IMPORT_PATH:-}" ]; then
+  export QML2_IMPORT_PATH="${ARCHIPELAGO_QML_IMPORT_PATH}:${QML2_IMPORT_PATH}"
+else
+  export QML2_IMPORT_PATH="${ARCHIPELAGO_QML_IMPORT_PATH}"
+fi
+
 exec quickshell -p "$QML_PATH" "$@"

@@ -8,11 +8,14 @@ Version: `1.0.0-r1`
 
 This release is an MVP for niri:
 
-- Compact islands for workspaces, clock, media, system status, and notifications.
+- One built-in `Time` plugin as code documentation for the plugin shape.
+- User, system, and package-installed third-party UI plugin roots.
+- Third-party backend modules through normal Qt QML imports.
 - One expanded surface at a time, morphing down from the triggering island.
+- Preview surfaces for transient plugin-owned UI.
 - niri workspace/window data through IPC, with reconnect and action failure reporting.
 - Hot-reloaded JSON config at `~/.config/archipelago/config.json`.
-- MPRIS media controls, battery, volume, brightness, screen-recording state, and notification capture.
+- Backend service singletons that external plugins can consume.
 
 Hyprland support is intentionally limited to a future adapter boundary.
 
@@ -89,6 +92,32 @@ The config supports:
 - Style token color overrides.
 
 Invalid JSON or out-of-range values fall back to defaults and are surfaced in the shell UI.
+
+## Preview Surfaces
+
+Plugins can register transient preview layouts in `manifest.json` under `previewTemplates`.
+Runtime code fills those layouts with payload data through the shell preview controller.
+The core package does not ship notification, connectivity, media, or workspace
+preview templates; those should come from external plugins.
+
+## Third-Party Plugins
+
+UI plugins can be installed under `~/.local/share/archipelago/plugins/<plugin-id>/`
+or `/usr/share/archipelago/plugins/<plugin-id>/` using the same
+`manifest.json`, `Compact.qml`, and `Expanded.qml` shape as the built-in
+`Time` plugin.
+
+Plugins that need backend behavior should ship an independent Qt QML module,
+for example `import ArchipelagoPlugins.Example 1.0`, installed under
+`~/.local/share/archipelago/qml` or the matching system QML roots. The launcher
+prepends those roots to `QML2_IMPORT_PATH` and preserves any existing user value.
+
+See [docs/third-party-plugins.md](docs/third-party-plugins.md) for the full
+directory layout and lifecycle convention.
+
+For pacman installs, Archipelago also installs an ALPM remove hook. On package
+removal it deletes unowned system plugin directories under `/usr/share` while
+leaving files owned by other pacman packages and all user plugins untouched.
 
 ## Install
 
