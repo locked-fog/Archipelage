@@ -1,5 +1,5 @@
 import QtQuick
-import ArchipelagoBackend
+import ArchipelagoCore
 
 // IslandModule is the framework's per-capsule container. It owns no
 // per-moduleId business logic — the active plugin's Compact.qml is

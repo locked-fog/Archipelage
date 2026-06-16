@@ -1,8 +1,18 @@
 # Third-Party Plugins
 
-Archipelago discovers and loads UI plugins. The core package ships only the `Time` plugin as code documentation. A third-party plugin that needs backend behavior should ship its own Qt QML module and import it from the plugin QML.
+Archipelago discovers and loads UI plugins. The core package ships only the `Time` plugin as code documentation. Plugins can import `ArchipelagoCore 1.0` for shell-owned configuration, style tokens, and plugin discovery. A third-party plugin that needs backend behavior should ship its own Qt QML module and import it from the plugin QML.
 
 Archipelago does not provide a backend plugin ABI, manifest-driven backend startup, dependency resolution, permission management, dynamic C++ module unload, or process isolation in this version.
+
+## Core API
+
+`ArchipelagoCore 1.0` is intentionally small. It contains:
+
+- `ArchipelagoConfig` for the user config and shell sizing/style preferences.
+- `StyleTokens` for the shared visual language.
+- `PluginScanner` for shell-owned plugin discovery.
+
+System features such as battery, brightness, notifications, media, and workspace integrations should live in plugin-owned QML modules rather than the core API.
 
 ## UI Plugin Roots
 

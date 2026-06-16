@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import ArchipelagoBackend
+import ArchipelagoCore
 import "components"
 import "services"
 

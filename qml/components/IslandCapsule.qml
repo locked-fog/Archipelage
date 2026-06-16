@@ -1,5 +1,5 @@
 import QtQuick
-import ArchipelagoBackend
+import ArchipelagoCore
 
 Rectangle {
     id: root

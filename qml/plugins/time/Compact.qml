@@ -1,4 +1,5 @@
 import QtQuick
+import ArchipelagoCore
 import ArchipelagoBackend
 
 Item {
