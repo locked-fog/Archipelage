@@ -11,6 +11,9 @@ Rectangle {
     property bool contentVisible: false
     property bool geometryAnimationEnabled: false
     property bool hovered: surfaceArea.containsMouse
+    readonly property var morphPositionCurve: [0.16, 1, 0.3, 1, 1, 1]
+    readonly property var morphSizeCurve: [0.22, 1, 0.36, 1, 1, 1]
+    readonly property var fadeCurve: [0.33, 1, 0.68, 1, 1, 1]
     property real originX: 0
     property real originY: 0
     property real originWidth: ArchipelagoConfig.islandHeight
@@ -26,7 +29,9 @@ Rectangle {
     readonly property real maskWidth: mounted ? Math.max(originX + originWidth, targetX + targetWidth) - maskX : 0
     readonly property real maskHeight: mounted ? Math.max(originY + originHeight, targetY + targetHeight) - maskY : 0
 
+    signal opening()
     signal closed()
+    signal geometryChanged()
 
     x: opened ? targetX : originX
     y: opened ? targetY : originY
@@ -40,6 +45,13 @@ Rectangle {
     border.color: StyleTokens.overviewBorder
     clip: true
     antialiasing: true
+
+    onMaskXChanged: geometryChanged()
+    onMaskYChanged: geometryChanged()
+    onMaskWidthChanged: geometryChanged()
+    onMaskHeightChanged: geometryChanged()
+    onMountedChanged: geometryChanged()
+    onOpenedChanged: geometryChanged()
 
     function clamp(value, minimum, maximum) {
         return Math.max(minimum, Math.min(maximum, value));
@@ -69,6 +81,7 @@ Rectangle {
         contentVisible = false;
         mounted = true;
         opened = false;
+        opening();
         Qt.callLater(function() {
             if (!root.mounted)
                 return;
@@ -90,26 +103,50 @@ Rectangle {
 
     Behavior on x {
         enabled: root.geometryAnimationEnabled
-        NumberAnimation { duration: ArchipelagoConfig.morphDuration; easing.type: Easing.OutQuint }
+        NumberAnimation {
+            duration: ArchipelagoConfig.morphDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.morphPositionCurve
+        }
     }
     Behavior on y {
         enabled: root.geometryAnimationEnabled
-        NumberAnimation { duration: ArchipelagoConfig.morphDuration; easing.type: Easing.OutQuint }
+        NumberAnimation {
+            duration: ArchipelagoConfig.morphDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.morphPositionCurve
+        }
     }
     Behavior on width {
         enabled: root.geometryAnimationEnabled
-        NumberAnimation { duration: ArchipelagoConfig.morphDuration; easing.type: Easing.OutQuint }
+        NumberAnimation {
+            duration: ArchipelagoConfig.morphDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.morphSizeCurve
+        }
     }
     Behavior on height {
         enabled: root.geometryAnimationEnabled
-        NumberAnimation { duration: ArchipelagoConfig.morphDuration; easing.type: Easing.OutQuint }
+        NumberAnimation {
+            duration: ArchipelagoConfig.morphDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.morphSizeCurve
+        }
     }
     Behavior on radius {
         enabled: root.geometryAnimationEnabled
-        NumberAnimation { duration: ArchipelagoConfig.morphDuration; easing.type: Easing.OutQuint }
+        NumberAnimation {
+            duration: ArchipelagoConfig.morphDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.morphSizeCurve
+        }
     }
     Behavior on opacity {
-        NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            duration: 120
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: root.fadeCurve
+        }
     }
 
     Timer {
@@ -153,8 +190,17 @@ Rectangle {
         Behavior on opacity {
             NumberAnimation {
                 duration: ArchipelagoConfig.contentFadeDuration
-                easing.type: Easing.OutCubic
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: root.fadeCurve
             }
+        }
+
+        Binding {
+            target: contentLoader.item
+            property: "shellWindow"
+            value: root.shellWindow
+            when: contentLoader.item && contentLoader.item.shellWindow !== undefined
+            restoreMode: Binding.RestoreNone
         }
     }
 }

@@ -111,26 +111,17 @@ QVariantMap makeModule(bool enabled,
 QVariantMap defaultAnchors()
 {
     QVariantMap anchors;
-    anchors.insert(QStringLiteral("left"), QVariantList({QStringLiteral("workspaces")}));
-    anchors.insert(QStringLiteral("center"), QVariantList({QStringLiteral("clock")}));
-    anchors.insert(QStringLiteral("right"), QVariantList({QStringLiteral("media"), QStringLiteral("system")}));
-    anchors.insert(QStringLiteral("overlay"), QVariantList({QStringLiteral("notifications")}));
+    anchors.insert(QStringLiteral("left"), QVariantList());
+    anchors.insert(QStringLiteral("center"), QVariantList({QStringLiteral("time")}));
+    anchors.insert(QStringLiteral("right"), QVariantList());
+    anchors.insert(QStringLiteral("overlay"), QVariantList());
     return anchors;
 }
 
 QVariantMap defaultModules()
 {
     QVariantMap modules;
-    modules.insert(QStringLiteral("workspaces"),
-                   makeModule(true,
-                              90,
-                              QStringLiteral("focused"),
-                              {{QStringLiteral("primary"), QStringLiteral("toggle")},
-                               {QStringLiteral("secondary"), QStringLiteral("refresh")}},
-                              {{QStringLiteral("up"), QStringLiteral("previousWorkspace")},
-                               {QStringLiteral("down"), QStringLiteral("nextWorkspace")}},
-                              156));
-    modules.insert(QStringLiteral("clock"),
+    modules.insert(QStringLiteral("time"),
                    makeModule(true,
                               50,
                               QStringLiteral("time"),
@@ -138,32 +129,6 @@ QVariantMap defaultModules()
                                {QStringLiteral("secondary"), QStringLiteral("calendar")}},
                               {},
                               108));
-    modules.insert(QStringLiteral("media"),
-                   makeModule(true,
-                              60,
-                              QStringLiteral("track"),
-                              {{QStringLiteral("primary"), QStringLiteral("toggle")},
-                               {QStringLiteral("secondary"), QStringLiteral("playPause")}},
-                              {{QStringLiteral("up"), QStringLiteral("nextTrack")},
-                               {QStringLiteral("down"), QStringLiteral("previousTrack")}},
-                              196));
-    modules.insert(QStringLiteral("system"),
-                   makeModule(true,
-                              80,
-                              QStringLiteral("cluster"),
-                              {{QStringLiteral("primary"), QStringLiteral("toggle")},
-                               {QStringLiteral("secondary"), QStringLiteral("refresh")}},
-                              {{QStringLiteral("up"), QStringLiteral("volumeUp")},
-                               {QStringLiteral("down"), QStringLiteral("volumeDown")}},
-                              146));
-    modules.insert(QStringLiteral("notifications"),
-                   makeModule(true,
-                              100,
-                              QStringLiteral("transient"),
-                              {{QStringLiteral("primary"), QStringLiteral("toggle")},
-                               {QStringLiteral("secondary"), QStringLiteral("dismiss")}},
-                              {},
-                              260));
     return modules;
 }
 

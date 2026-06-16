@@ -1,0 +1,24 @@
+#!/bin/sh
+# Remove manually installed system plugins when the archipelago package
+# is uninstalled. Files still owned by another pacman package are kept.
+
+cleanup_root() {
+    root=$1
+    [ -d "$root" ] || return 0
+
+    find "$root" -mindepth 1 -maxdepth 1 -exec /bin/sh -c '
+        for path do
+            if pacman -Qo "$path" >/dev/null 2>&1; then
+                continue
+            fi
+            rm -rf -- "$path"
+        done
+    ' sh {} +
+
+    rmdir "$root" 2>/dev/null || true
+}
+
+cleanup_root /usr/share/archipelago/plugins
+cleanup_root /usr/share/archipelago/qml/ArchipelagoPlugins
+
+exit 0

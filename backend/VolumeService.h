@@ -12,9 +12,9 @@ class QTimer;
 // and re-queries on change, and detects whether the active sink is a
 // bluetooth endpoint (sink name contains "bluez").
 //
-// This was extracted from the legacy SysBackend. The system plugin's
-// compact view reads volume / muted through this singleton; future
-// wheel handlers will route to its setters.
+// This was extracted from the legacy SysBackend. External plugins can
+// read volume / muted through this singleton and route controls to its
+// setters.
 class VolumeService : public QObject {
     Q_OBJECT
     QML_ELEMENT

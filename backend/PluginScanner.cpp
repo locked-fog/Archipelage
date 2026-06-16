@@ -8,7 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
-#include <QStandardPaths>
+#include <QSet>
 #include <QtGlobal>
 
 namespace {
@@ -49,19 +49,88 @@ QString safeComponentFileName(const QJsonObject &object,
     return value;
 }
 
+QString safePreviewComponentFileName(const QJsonObject &object, const QString &key)
+{
+    const QString value = object.value(key).toString().trimmed();
+    if (value.isEmpty())
+        return QString();
+    if (value.contains(QLatin1Char('/')) || value.contains(QLatin1Char('\\'))) {
+        qCWarning(lcPlugins) << "Ignoring unsafe preview component path in manifest key" << key << ":" << value;
+        return QString();
+    }
+    if (!value.endsWith(QStringLiteral(".qml"))) {
+        qCWarning(lcPlugins) << "Ignoring non-QML preview component path in manifest key" << key << ":" << value;
+        return QString();
+    }
+    return value;
+}
+
+QVariantList parsePreviewTemplates(const QJsonObject &object)
+{
+    QVariantList result;
+    const QJsonValue templates = object.value(QStringLiteral("previewTemplates"));
+    if (!templates.isArray())
+        return result;
+
+    const QJsonArray array = templates.toArray();
+    for (const QJsonValue &entryValue : array) {
+        if (!entryValue.isObject()) {
+            qCWarning(lcPlugins) << "Ignoring non-object preview template";
+            continue;
+        }
+
+        const QJsonObject entryObject = entryValue.toObject();
+        const QString id = entryObject.value(QStringLiteral("id")).toString().trimmed();
+        const QString component = safePreviewComponentFileName(entryObject, QStringLiteral("component"));
+        if (!isSafePluginId(id) || component.isEmpty()) {
+            qCWarning(lcPlugins) << "Ignoring invalid preview template" << id;
+            continue;
+        }
+
+        QVariantMap entry;
+        entry.insert(QStringLiteral("id"), id);
+        entry.insert(QStringLiteral("component"), component);
+        entry.insert(QStringLiteral("defaultWidth"), entryObject.value(QStringLiteral("defaultWidth")).toInt(360));
+        entry.insert(QStringLiteral("defaultHeight"), entryObject.value(QStringLiteral("defaultHeight")).toInt(112));
+        entry.insert(QStringLiteral("timeoutMs"), entryObject.value(QStringLiteral("timeoutMs")).toInt(5000));
+        entry.insert(QStringLiteral("maxVisible"), entryObject.value(QStringLiteral("maxVisible")).toInt(5));
+        entry.insert(QStringLiteral("focusPolicy"), entryObject.value(QStringLiteral("focusPolicy")).toString(QStringLiteral("passive")));
+        result.append(entry);
+    }
+    return result;
+}
+
 QStringList pluginSearchPaths()
 {
     QStringList paths;
 
     const QByteArray envOverride = qgetenv("ARCHIPELAGO_PLUGINS_DIR");
-    if (!envOverride.isEmpty())
+    if (!envOverride.isEmpty()) {
         paths << QString::fromLocal8Bit(envOverride);
+        return paths;
+    }
+
+    const QByteArray xdgDataHome = qgetenv("XDG_DATA_HOME");
+    const QString userDataHome = !xdgDataHome.isEmpty()
+        ? QString::fromLocal8Bit(xdgDataHome)
+        : QDir::homePath() + QStringLiteral("/.local/share");
+    paths << userDataHome + QStringLiteral("/archipelago/plugins");
+
+    const QByteArray xdgDataDirs = qgetenv("XDG_DATA_DIRS");
+    const QStringList systemDataDirs = !xdgDataDirs.isEmpty()
+        ? QString::fromLocal8Bit(xdgDataDirs).split(QLatin1Char(':'), Qt::SkipEmptyParts)
+        : QStringList({
+              QStringLiteral("/usr/share"),
+              QStringLiteral("/usr/local/share")
+          });
+    for (const QString &dataDir : systemDataDirs)
+        paths << dataDir + QStringLiteral("/archipelago/plugins");
 
     paths << QDir::currentPath() + QStringLiteral("/qml/plugins");
 
     // The CMake install rule puts the qml tree under
     // <prefix>/share/archipelago/qml. We resolve <prefix> via the
-    // binary location and fall back to QStandardPaths.
+    // binary location and fall back to well-known system install roots.
     const QString appDir = QCoreApplication::applicationDirPath();
     const QStringList installCandidates = {
         appDir + QStringLiteral("/../share/archipelago/qml/plugins"),
@@ -72,7 +141,16 @@ QStringList pluginSearchPaths()
     for (const QString &candidate : installCandidates)
         paths << candidate;
 
-    return paths;
+    QStringList uniquePaths;
+    QSet<QString> seen;
+    for (const QString &path : paths) {
+        const QString cleaned = QDir::cleanPath(path);
+        if (cleaned.isEmpty() || seen.contains(cleaned))
+            continue;
+        seen.insert(cleaned);
+        uniquePaths << cleaned;
+    }
+    return uniquePaths;
 }
 
 QVariantMap fallbackEntry(const QString &absoluteDirPath, const QString &id)
@@ -88,6 +166,7 @@ QVariantMap fallbackEntry(const QString &absoluteDirPath, const QString &id)
     QVariantMap entry;
     entry.insert(QStringLiteral("id"), id);
     entry.insert(QStringLiteral("directoryName"), id);
+    entry.insert(QStringLiteral("directoryPath"), absoluteDirPath);
     entry.insert(QStringLiteral("label"), id);
     entry.insert(QStringLiteral("version"), QStringLiteral("0.0.0"));
     entry.insert(QStringLiteral("anchors"), QVariantList());
@@ -97,6 +176,7 @@ QVariantMap fallbackEntry(const QString &absoluteDirPath, const QString &id)
     entry.insert(QStringLiteral("preferredWidth"), 0);
     entry.insert(QStringLiteral("preferredHeight"), 0);
     entry.insert(QStringLiteral("dataNeeds"), QVariantList());
+    entry.insert(QStringLiteral("previewTemplates"), QVariantList());
     entry.insert(QStringLiteral("source"), QStringLiteral("fallback"));
     return entry;
 }
@@ -138,14 +218,24 @@ void PluginScanner::rescan()
 void PluginScanner::scan()
 {
     QVariantList next;
-    if (!m_pluginsBase.isEmpty()) {
-        const QStringList subdirs = listSubdirectories(m_pluginsBase);
+    QSet<QString> seenIds;
+
+    for (const QString &pluginsRoot : pluginSearchPaths()) {
+        const QFileInfo rootInfo(pluginsRoot);
+        if (!rootInfo.exists() || !rootInfo.isDir())
+            continue;
+
+        const QStringList subdirs = listSubdirectories(rootInfo.absoluteFilePath());
         for (const QString &subdir : subdirs) {
             const QVariantMap entry = parsePluginDir(subdir);
-            if (!entry.isEmpty())
-                next.append(entry);
+            const QString id = entry.value(QStringLiteral("id")).toString();
+            if (entry.isEmpty() || seenIds.contains(id))
+                continue;
+            seenIds.insert(id);
+            next.append(entry);
         }
     }
+
     m_plugins = next;
     emit pluginsChanged();
 }
@@ -200,6 +290,7 @@ QVariantMap PluginScanner::parseManifestFile(const QString &manifestPath,
     QVariantMap entry;
     entry.insert(QStringLiteral("id"), id);
     entry.insert(QStringLiteral("directoryName"), fallbackId);
+    entry.insert(QStringLiteral("directoryPath"), QFileInfo(manifestPath).absolutePath());
     entry.insert(QStringLiteral("label"),
                  object.value(QStringLiteral("label")).toString(entry.value(QStringLiteral("id")).toString()));
     entry.insert(QStringLiteral("version"),
@@ -223,6 +314,7 @@ QVariantMap PluginScanner::parseManifestFile(const QString &manifestPath,
     const QJsonValue dataNeeds = object.value(QStringLiteral("dataNeeds"));
     entry.insert(QStringLiteral("dataNeeds"),
                  dataNeeds.isArray() ? dataNeeds.toArray().toVariantList() : QVariantList());
+    entry.insert(QStringLiteral("previewTemplates"), parsePreviewTemplates(object));
     entry.insert(QStringLiteral("source"), QStringLiteral("manifest"));
     return entry;
 }

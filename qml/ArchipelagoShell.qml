@@ -9,17 +9,20 @@ PanelWindow {
     id: root
 
     property var shellRootController: null
-    readonly property var niri: Compositor.niriService
     readonly property bool screenFocused: true
     readonly property int compactTop: 4
     readonly property int compactBottom: compactTop + ArchipelagoConfig.islandHeight
-    readonly property bool expandedOpen: expandedSurface.opened || expandedSurface.mounted
+    readonly property bool expandedOpen: islandHost.expandedMounted
+        || previewController.mounted
 
     // The plugin registry. Populated by the IslandRegistry child below
-    // at Component.onCompleted. IslandHost and ExpandedSurface both read
-    // from moduleRegistry instead of branching on moduleId themselves.
-    // Adding a new built-in module requires only dropping a directory
-    // under qml/plugins/<id>/ with Compact.qml and/or Expanded.qml.
+    // at Component.onCompleted. IslandHost and per-module expanded
+    // surfaces both read from moduleRegistry instead of branching on
+    // moduleId themselves.
+    // The only built-in plugin is qml/plugins/time. Third-party UI
+    // plugins can be installed under
+    // ~/.local/share/archipelago/plugins/<id>/ or
+    // /usr/share/archipelago/plugins/<id>/.
     // preferredWidth / preferredHeight of 0 fall back to
     // ArchipelagoConfig.expandedWidth / expandedHeight.
     property var moduleRegistry: registry.entries
@@ -34,6 +37,32 @@ PanelWindow {
 
     function expandedComponentFor(moduleId) {
         return moduleEntry(moduleId).expanded || null;
+    }
+
+    function previewTemplateFor(moduleId, templateId) {
+        const templates = moduleEntry(moduleId).previewTemplates || {};
+        return templates[templateId] || null;
+    }
+
+    function showPreview(moduleId, templateId, payload, options) {
+        if (!moduleId || !templateId)
+            return "";
+
+        const opts = {};
+        const sourceOptions = options || {};
+        for (const key in sourceOptions)
+            opts[key] = sourceOptions[key];
+        if (!opts.originRect)
+            opts.originRect = originRectForModule(moduleId);
+        return previewController.show(moduleId, templateId, payload || {}, opts);
+    }
+
+    function dismissPreview(instanceId) {
+        previewController.dismiss(instanceId || "");
+    }
+
+    function dismissPreviewLayout(moduleId, templateId) {
+        previewController.dismissLayout(moduleId || "", templateId || "");
     }
 
     function preferredExpandedWidth(moduleId) {
@@ -52,28 +81,45 @@ PanelWindow {
     }
 
     function openExpanded(moduleId, originRect) {
-        if (!moduleId || moduleId === "notifications")
+        if (!moduleId)
             return;
-        islandHost.expandedModule = moduleId;
-        expandedSurface.openModule(moduleId, originRect);
+        islandHost.openExpandedModule(moduleId, originRect);
     }
 
     function closeExpanded() {
-        expandedSurface.close();
+        islandHost.closeExpanded();
     }
 
     function toggleModule(moduleId) {
-        if (expandedSurface.opened && expandedSurface.moduleId === moduleId) {
+        if (islandHost.expandedModule === moduleId) {
             closeExpanded();
             return;
         }
         islandHost.activateModuleById(moduleId);
     }
 
-    function showNotification(appName, summary, body) {
-        if (expandedSurface.opened && expandedSurface.hovered)
-            return;
-        notificationCapsule.show(appName, summary, body);
+    function originRectForModule(moduleId) {
+        const rect = islandHost.originRectForModule(moduleId);
+        if (rect !== null)
+            return rect;
+        return {
+            "x": Math.max(ArchipelagoConfig.edgeMargin, root.width - ArchipelagoConfig.edgeMargin - ArchipelagoConfig.islandHeight),
+            "y": root.compactTop,
+            "width": ArchipelagoConfig.islandHeight,
+            "height": ArchipelagoConfig.islandHeight
+        };
+    }
+
+    function originRectForItem(item) {
+        if (!item)
+            return null;
+        const point = item.mapToItem(previewController, 0, 0);
+        return {
+            "x": point.x,
+            "y": point.y,
+            "width": item.width,
+            "height": item.height
+        };
     }
 
     color: StyleTokens.transparent
@@ -110,87 +156,64 @@ PanelWindow {
 
         Region {
             intersection: Intersection.Combine
-            x: Math.floor(notificationCapsule.x)
-            y: Math.floor(notificationCapsule.y)
-            width: notificationCapsule.visible ? Math.ceil(notificationCapsule.width) : 0
-            height: notificationCapsule.visible ? Math.ceil(notificationCapsule.height) : 0
+            x: Math.floor(islandHost.expandedMaskX)
+            y: Math.floor(islandHost.expandedMaskY)
+            width: Math.ceil(islandHost.expandedMaskWidth)
+            height: Math.ceil(islandHost.expandedMaskHeight)
         }
 
         Region {
             intersection: Intersection.Combine
-            x: Math.floor(expandedSurface.maskX)
-            y: Math.floor(expandedSurface.maskY)
-            width: Math.ceil(expandedSurface.maskWidth)
-            height: Math.ceil(expandedSurface.maskHeight)
+            x: Math.floor(previewController.maskX)
+            y: Math.floor(previewController.maskY)
+            width: Math.ceil(previewController.maskWidth)
+            height: Math.ceil(previewController.maskHeight)
         }
     }
 
     implicitHeight: Math.max(
-        expandedOpen ? Math.ceil(expandedSurface.maskY + expandedSurface.maskHeight + 12) : 0,
-        notificationCapsule.visible ? Math.ceil(notificationCapsule.y + notificationCapsule.height + 8) : 0,
+        islandHost.expandedMounted ? Math.ceil(islandHost.expandedMaskY + islandHost.expandedMaskHeight + 12) : 0,
+        previewController.mounted ? Math.ceil(previewController.maskY + previewController.maskHeight + 12) : 0,
         Math.ceil(ArchipelagoConfig.islandHeight + 8)
     )
     exclusiveZone: Math.ceil(ArchipelagoConfig.islandHeight + 7)
     aboveWindows: true
-    focusable: expandedOpen
+    focusable: islandHost.expandedOpened || previewController.hasFocusedPreview
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: expandedOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (islandHost.expandedOpened || previewController.hasFocusedPreview)
+        ? WlrKeyboardFocus.OnDemand
+        : WlrKeyboardFocus.None
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: islandHost.expandedMounted
+        acceptedButtons: Qt.LeftButton
+        onClicked: root.closeExpanded()
+    }
 
     IslandHost {
         id: islandHost
 
         anchors.fill: parent
         topMargin: root.compactTop
+        shellWindow: root
 
         onModuleTriggered: function(moduleId, originRect) {
             root.openExpanded(moduleId, originRect);
         }
     }
 
-    NotificationCapsule {
-        id: notificationCapsule
+    PreviewController {
+        id: previewController
 
-        anchors.top: parent.top
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.topMargin: root.compactTop + ArchipelagoConfig.islandHeight + 8
-        width: Math.min(360, Math.max(260, parent.width - 2 * ArchipelagoConfig.edgeMargin))
-        height: ArchipelagoConfig.islandHeight
-
-        onOpenRequested: {
-            const origin = {
-                "x": notificationCapsule.x,
-                "y": notificationCapsule.y,
-                "width": notificationCapsule.width,
-                "height": notificationCapsule.height
-            };
-            islandHost.expandedModule = "notifications";
-            expandedSurface.openModule("notifications", origin);
-        }
-    }
-
-    ExpandedSurface {
-        id: expandedSurface
-
+        anchors.fill: parent
         shellWindow: root
-
-        onClosed: {
-            islandHost.expandedModule = "";
-        }
     }
 
-    Connections {
-        target: root.niri
-
-        function onActionFailed(actionName, message) {
-            notificationCapsule.show("niri", actionName, message);
-        }
-    }
-
-    // Plugin registry. Discovers built-in modules under qml/plugins/
-    // and exposes a uniform entries map. moduleRegistry above reads
-    // from registry.entries, so all framework dispatch flows through
-    // here. Adding a new module means dropping a directory under
-    // qml/plugins/<id>/ with Compact.qml and/or Expanded.qml.
+    // Plugin registry. Discovers the built-in Time example plus
+    // user/system third-party plugin roots and exposes a uniform entries
+    // map. moduleRegistry above reads from registry.entries, so all
+    // framework dispatch flows through here.
     IslandRegistry {
         id: registry
     }

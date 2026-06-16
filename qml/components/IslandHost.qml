@@ -5,7 +5,9 @@ Item {
     id: root
 
     property string expandedModule: ""
+    property var shellWindow: null
     property int topMargin: 4
+    property int expandedGeometryRevision: 0
     readonly property var anchorsConfig: ArchipelagoConfig.anchors
     readonly property int compactLevel: width < 1180 ? 2 : (width < 1480 ? 1 : 0)
     readonly property real groupY: topMargin
@@ -16,6 +18,13 @@ Item {
     readonly property real centerWidth: centerRow.visible ? centerRow.width : 0
     readonly property real rightX: rightRow.x
     readonly property real rightWidth: rightRow.visible ? rightRow.width : 0
+    readonly property bool expandedMounted: calculateExpandedMask("mounted", expandedGeometryRevision) > 0
+    readonly property bool expandedOpened: calculateExpandedMask("opened", expandedGeometryRevision) > 0
+    readonly property bool expandedHovered: calculateExpandedMask("hovered", expandedGeometryRevision) > 0
+    readonly property real expandedMaskX: calculateExpandedMask("x", expandedGeometryRevision)
+    readonly property real expandedMaskY: calculateExpandedMask("y", expandedGeometryRevision)
+    readonly property real expandedMaskWidth: calculateExpandedMask("width", expandedGeometryRevision)
+    readonly property real expandedMaskHeight: calculateExpandedMask("height", expandedGeometryRevision)
 
     signal moduleTriggered(string moduleId, var originRect)
 
@@ -74,11 +83,7 @@ Item {
     }
 
     function shouldShowModule(moduleId) {
-        if (moduleId === "notifications")
-            return false;
         if (!ArchipelagoConfig.moduleEnabled(moduleId))
-            return false;
-        if (compactLevel >= 2 && moduleId === "media")
             return false;
         if (compactLevel >= 1 && modulePriority(moduleId) < 35)
             return false;
@@ -106,17 +111,136 @@ Item {
     }
 
     function activateModuleById(moduleId) {
+        const rect = originRectForModule(moduleId);
+        if (rect !== null)
+            moduleTriggered(moduleId, rect);
+    }
+
+    function moduleItems() {
+        return rowItems(leftRow).concat(rowItems(centerRow)).concat(rowItems(rightRow));
+    }
+
+    function rowItems(row) {
+        const result = [];
+        const children = row.children;
+        for (let index = 0; index < children.length; index++) {
+            const child = children[index];
+            if (child && child.moduleId !== undefined)
+                result.push(child);
+        }
+        return result;
+    }
+
+    function moduleItem(moduleId) {
+        const items = moduleItems();
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            if (item && item.moduleId === moduleId && item.visible)
+                return item;
+        }
+        return null;
+    }
+
+    function openExpandedModule(moduleId, originRect) {
+        const target = moduleItem(moduleId);
+        if (!target)
+            return;
+        const items = moduleItems();
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            if (item && item !== target)
+                item.closeExpanded();
+        }
+        target.openExpanded(originRect);
+    }
+
+    function closeExpanded() {
+        const items = moduleItems();
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            if (item)
+                item.closeExpanded();
+        }
+        expandedModule = "";
+        bumpExpandedGeometry();
+    }
+
+    function noteModuleOpening(moduleId) {
+        expandedModule = moduleId;
+        bumpExpandedGeometry();
+    }
+
+    function noteModuleClosed(moduleId) {
+        if (expandedModule === moduleId)
+            expandedModule = "";
+        bumpExpandedGeometry();
+    }
+
+    function bumpExpandedGeometry() {
+        expandedGeometryRevision = expandedGeometryRevision + 1;
+    }
+
+    function calculateExpandedMask(field, revision) {
+        const items = moduleItems();
+        if (field === "mounted" || field === "opened" || field === "hovered") {
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                if (!item)
+                    continue;
+                if (field === "mounted" && item.expandedMounted)
+                    return 1;
+                if (field === "opened" && item.expandedOpened)
+                    return 1;
+                if (field === "hovered" && item.expandedHovered)
+                    return 1;
+            }
+            return 0;
+        }
+
+        let hasSurface = false;
+        let minX = 1000000;
+        let minY = 1000000;
+        let maxX = 0;
+        let maxY = 0;
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            if (!item || !item.expandedMounted)
+                continue;
+            hasSurface = true;
+            minX = Math.min(minX, item.expandedMaskX);
+            minY = Math.min(minY, item.expandedMaskY);
+            maxX = Math.max(maxX, item.expandedMaskX + item.expandedMaskWidth);
+            maxY = Math.max(maxY, item.expandedMaskY + item.expandedMaskHeight);
+        }
+        if (!hasSurface)
+            return 0;
+        if (field === "x")
+            return minX;
+        if (field === "y")
+            return minY;
+        if (field === "width")
+            return maxX - minX;
+        return maxY - minY;
+    }
+
+    function originRectForModule(moduleId) {
         const rows = [leftRow, centerRow, rightRow];
         for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
             const children = rows[rowIndex].children;
             for (let childIndex = 0; childIndex < children.length; childIndex++) {
                 const child = children[childIndex];
                 if (child && child.moduleId === moduleId && child.visible) {
-                    activateModule(moduleId, child);
-                    return;
+                    const point = child.mapToItem(root.parent, 0, 0);
+                    return {
+                        "x": point.x,
+                        "y": point.y,
+                        "width": child.width,
+                        "height": child.height
+                    };
                 }
             }
         }
+        return null;
     }
 
     Row {

@@ -1,32 +1,16 @@
 {
   "anchors": {
-    "left": ["workspaces"],
-    "center": ["clock"],
-    "right": ["media", "system"],
-    "overlay": ["notifications"]
+    "left": [],
+    "center": ["time"],
+    "right": [],
+    "overlay": []
   },
   "modules": {
-    "workspaces": {
-      "enabled": true,
-      "priority": 90,
-      "compact": "focused",
-      "actions": { "primary": "toggle" },
-      "scroll": { "up": "previousWorkspace", "down": "nextWorkspace" }
-    },
-    "clock": {
+    "time": {
       "enabled": true,
       "priority": 50,
-      "compact": "time"
-    },
-    "media": {
-      "enabled": true,
-      "priority": 60,
-      "compact": "track"
-    },
-    "system": {
-      "enabled": true,
-      "priority": 80,
-      "compact": "cluster"
+      "compact": "time",
+      "width": 108
     }
   },
   "fonts": {
@@ -46,7 +30,7 @@
     "expandedHeight": 380
   },
   "animations": {
-    "morphMs": 380,
+    "morphMs": 480,
     "compactFadeMs": 150,
     "contentFadeMs": 180
   },

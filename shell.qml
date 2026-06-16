@@ -31,15 +31,11 @@ Scope {
             callback(windows[0]);
     }
 
-    function showNotificationAll(appName, summary, body) {
-        forEachShell((window) => window.showNotification(appName, summary, body));
-    }
-
     IpcHandler {
         target: "archipelago"
 
         function toggle(moduleId) {
-            shellRoot.forFocusedShell((window) => window.toggleModule(moduleId || "system"));
+            shellRoot.forFocusedShell((window) => window.toggleModule(moduleId || "time"));
         }
 
         function close() {
@@ -60,14 +56,6 @@ Scope {
             const niri = Compositor.niriService;
             if (niri)
                 niri.focusWorkspaceRelative(-1);
-        }
-    }
-
-    Connections {
-        target: NotificationService
-
-        function onNotificationReceived(appName, summary, body) {
-            shellRoot.showNotificationAll(appName, summary, body);
         }
     }
 
