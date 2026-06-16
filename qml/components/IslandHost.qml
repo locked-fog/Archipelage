@@ -1,5 +1,5 @@
 import QtQuick
-import ArchipelagoBackend
+import ArchipelagoCore
 
 Item {
     id: root

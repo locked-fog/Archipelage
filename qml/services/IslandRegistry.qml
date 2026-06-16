@@ -1,9 +1,9 @@
 import QtQuick
 import Quickshell
-import ArchipelagoBackend
+import ArchipelagoCore
 
 // IslandRegistry exposes a uniform entry map for the framework.
-// The actual disk scan is done by the C++ PluginScanner singleton;
+// The actual disk scan is done by the ArchipelagoCore PluginScanner singleton;
 // IslandRegistry just builds the { id → Component } map from the
 // manifest list and watches for rescan notifications.
 //

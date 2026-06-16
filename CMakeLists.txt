@@ -17,9 +17,16 @@ endif()
 
 enable_testing()
 
-set(ARCHIPELAGO_BACKEND_SOURCES
+set(ARCHIPELAGO_CORE_SOURCES
     backend/ArchipelagoConfig.h
     backend/ArchipelagoConfig.cpp
+    backend/PluginScanner.h
+    backend/PluginScanner.cpp
+    backend/StyleTokens.h
+    backend/StyleTokens.cpp
+)
+
+set(ARCHIPELAGO_BACKEND_SOURCES
     backend/BatteryService.h
     backend/BatteryService.cpp
     backend/BrightnessService.h
@@ -30,10 +37,6 @@ set(ARCHIPELAGO_BACKEND_SOURCES
     backend/NiriCompositorService.cpp
     backend/NotificationService.h
     backend/NotificationService.cpp
-    backend/PluginScanner.h
-    backend/PluginScanner.cpp
-    backend/StyleTokens.h
-    backend/StyleTokens.cpp
     backend/SysBackend.h
     backend/SysBackend.cpp
     backend/SystemServices.h
@@ -167,6 +170,24 @@ target_link_libraries(notification_service_tests PRIVATE
 
 add_test(NAME notification_service COMMAND notification_service_tests)
 
+qt_add_qml_module(ArchipelagoCore
+    URI ArchipelagoCore
+    VERSION 1.0
+    OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ArchipelagoCore
+    SOURCES
+        ${ARCHIPELAGO_CORE_SOURCES}
+)
+
+target_include_directories(ArchipelagoCore PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+)
+
+target_link_libraries(ArchipelagoCore PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+)
+
 qt_add_qml_module(ArchipelagoBackend
     URI ArchipelagoBackend
     VERSION 1.0
@@ -226,8 +247,17 @@ install(TARGETS ArchipelagoBackend
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
+install(TARGETS ArchipelagoCore
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
 install(TARGETS ArchipelagoBackendplugin
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/ArchipelagoBackend
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(TARGETS ArchipelagoCoreplugin
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/ArchipelagoCore
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
@@ -235,6 +265,12 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/ArchipelagoBackend/qmldir
     ${CMAKE_CURRENT_BINARY_DIR}/ArchipelagoBackend/ArchipelagoBackend.qmltypes
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/ArchipelagoBackend
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/ArchipelagoCore/qmldir
+    ${CMAKE_CURRENT_BINARY_DIR}/ArchipelagoCore/ArchipelagoCore.qmltypes
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/qt6/qml/ArchipelagoCore
 )
 
 install(PROGRAMS archipelago-launcher DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME archipelago)

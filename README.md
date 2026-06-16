@@ -15,7 +15,8 @@ This release is an MVP for niri:
 - Preview surfaces for transient plugin-owned UI.
 - niri workspace/window data through IPC, with reconnect and action failure reporting.
 - Hot-reloaded JSON config at `~/.config/archipelago/config.json`.
-- Backend service singletons that external plugins can consume.
+- Minimal `ArchipelagoCore` QML API for configuration, style tokens, and plugin discovery.
+- Legacy backend service singletons kept separate from the core API while system features move toward plugin-owned modules.
 
 Hyprland support is intentionally limited to a future adapter boundary.
 
@@ -61,7 +62,7 @@ From the project root:
 
 ```bash
 QML2_IMPORT_PATH="$PWD/build:${QML2_IMPORT_PATH}" \
-LD_LIBRARY_PATH="$PWD/build:$PWD/build/ArchipelagoBackend:${LD_LIBRARY_PATH}" \
+LD_LIBRARY_PATH="$PWD/build:$PWD/build/ArchipelagoCore:$PWD/build/ArchipelagoBackend:${LD_LIBRARY_PATH}" \
 quickshell -v -p "$PWD"
 ```
 
@@ -107,7 +108,8 @@ or `/usr/share/archipelago/plugins/<plugin-id>/` using the same
 `manifest.json`, `Compact.qml`, and `Expanded.qml` shape as the built-in
 `Time` plugin.
 
-Plugins that need backend behavior should ship an independent Qt QML module,
+Plugins can import `ArchipelagoCore 1.0` for shell-owned configuration and
+style tokens. Plugins that need backend behavior should ship an independent Qt QML module,
 for example `import ArchipelagoPlugins.Example 1.0`, installed under
 `~/.local/share/archipelago/qml` or the matching system QML roots. The launcher
 prepends those roots to `QML2_IMPORT_PATH` and preserves any existing user value.
