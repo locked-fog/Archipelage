@@ -126,6 +126,7 @@ Item {
             "focusPolicy": focusPolicy,
             "focused": wantsFocus,
             "activatedCallback": opts.onActivated || null,
+            "dismissedCallback": opts.onDismissed || null,
             "protectedOffset": protectedOffsetFor(pluginId, templateId, previewHeight, wantsFocus),
             "stackIndex": 0
         });
@@ -174,6 +175,15 @@ Item {
         const visible = visibleInstancesFor(pluginId, templateId);
         for (let index = 0; index < visible.length; index++)
             dismiss(visible[index].instanceId);
+    }
+
+    function dismissAll() {
+        const visible = instances.slice();
+        for (let index = 0; index < visible.length; index++) {
+            const item = visible[index];
+            if (item && item.instanceId)
+                dismiss(item.instanceId);
+        }
     }
 
     function finishClose(surface) {
@@ -280,6 +290,7 @@ Item {
             property string focusPolicy: "passive"
             property bool focused: false
             property var activatedCallback: null
+            property var dismissedCallback: null
             property real protectedOffset: 0
             property int stackIndex: 0
             property bool opened: false
@@ -306,6 +317,8 @@ Item {
                 if (closing)
                     return;
                 closing = true;
+                if (typeof dismissedCallback === "function")
+                    dismissedCallback(instanceId, pluginId, templateId);
                 closeCleanupTimer.restart();
                 root.bumpGeometryRevision();
             }

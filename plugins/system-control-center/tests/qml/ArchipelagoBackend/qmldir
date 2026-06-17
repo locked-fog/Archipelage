@@ -1,0 +1,4 @@
+module ArchipelagoBackend
+singleton BatteryService 1.0 BatteryService.qml
+singleton BrightnessService 1.0 BrightnessService.qml
+singleton SystemServices 1.0 SystemServices.qml
