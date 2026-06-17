@@ -27,6 +27,13 @@
 //     "expanded":        "Expanded.qml",      // defaults to "Expanded.qml"
 //     "preferredWidth":  680,                 // 0 → ArchipelagoConfig default
 //     "preferredHeight": 430,
+//     "compactLayout": {
+//       "preferredWidth": 180,
+//       "minimumWidth": 44,
+//       "maximumWidth": 320,
+//       "visible": true,
+//       "priority": 70
+//     },
 //     "dataNeeds":       ["niriService"]      // informational; plugin author
 //                                              // is responsible for importing
 //                                              // the actual backend singletons

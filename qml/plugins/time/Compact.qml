@@ -23,6 +23,17 @@ Item {
     // reactive flicker.
     readonly property int rollDuration: 500
     readonly property int pixelSize: compactLevel >= 2 ? 14 : 15
+    readonly property int compactLayoutPriority: 50
+    readonly property bool compactVisibleRequested: true
+    readonly property int minimumCompactWidth: compactLevel >= 2 ? 96 : 104
+    readonly property int maximumCompactWidth: compactLevel >= 2 ? 120 : 132
+    readonly property int preferredCompactWidth: Math.max(
+        minimumCompactWidth,
+        Math.min(
+            maximumCompactWidth,
+            Math.round(root.fixedCellW * 5 + 21 + (SystemServices.screenRecordingActive ? 18 : 0))
+        )
+    )
 
     // Single font definition shared by every slot and the colon, so a
     // future config tweak (e.g. weight, hinting) only needs one edit.

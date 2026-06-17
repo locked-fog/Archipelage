@@ -19,6 +19,20 @@ private:
     QString m_builtinPluginsPath;
     QString m_basePath;
 
+    QVariantList pluginsUnder(const PluginScanner &scanner, const QString &basePath) const
+    {
+        QVariantList result;
+        const QString prefix = QDir::cleanPath(basePath) + QLatin1Char('/');
+        const QVariantList plugins = scanner.plugins();
+        for (const QVariant &pluginValue : plugins) {
+            const QVariantMap plugin = pluginValue.toMap();
+            const QString directoryPath = QDir::cleanPath(plugin.value(QStringLiteral("directoryPath")).toString());
+            if (directoryPath == QDir::cleanPath(basePath) || directoryPath.startsWith(prefix))
+                result.append(plugin);
+        }
+        return result;
+    }
+
     void resetDir(const QString &path)
     {
         QDir(path).removeRecursively();
@@ -100,7 +114,7 @@ private slots:
     void emptyPluginsDirYieldsEmptyList()
     {
         PluginScanner scanner;
-        QCOMPARE(scanner.plugins().size(), 0);
+        QCOMPARE(pluginsUnder(scanner, m_envPluginsPath).size(), 0);
         QCOMPARE(scanner.pluginsBase(), m_envPluginsPath);
     }
 
@@ -140,7 +154,7 @@ private slots:
         PluginScanner scanner;
         QVERIFY(!scanner.manifestFor("env-only").isEmpty());
         QVERIFY(scanner.manifestFor("user-only").isEmpty());
-        QCOMPARE(scanner.plugins().size(), 1);
+        QCOMPARE(pluginsUnder(scanner, m_envPluginsPath).size(), 1);
     }
 
     void envPluginDirectoryKeepsBuiltInRoots()
@@ -169,6 +183,13 @@ private slots:
                            "expanded": "Expanded.qml",
                            "preferredWidth": 680,
                            "preferredHeight": 430,
+                           "compactLayout": {
+                               "preferredWidth": 164,
+                               "minimumWidth": 52,
+                               "maximumWidth": 280,
+                               "visible": false,
+                               "priority": 83
+                           },
                            "dataNeeds": ["niriService"],
                            "previewTemplates": [
                                {
@@ -185,7 +206,7 @@ private slots:
                        true, true);
 
         PluginScanner scanner;
-        const QVariantList list = scanner.plugins();
+        const QVariantList list = pluginsUnder(scanner, m_envPluginsPath);
         QCOMPARE(list.size(), 1);
 
         const QVariantMap entry = list.first().toMap();
@@ -201,6 +222,12 @@ private slots:
         QCOMPARE(entry.value("expanded").toString(), QStringLiteral("Expanded.qml"));
         QCOMPARE(entry.value("preferredWidth").toInt(), 680);
         QCOMPARE(entry.value("preferredHeight").toInt(), 430);
+        const QVariantMap compactLayout = entry.value("compactLayout").toMap();
+        QCOMPARE(compactLayout.value("preferredWidth").toInt(), 164);
+        QCOMPARE(compactLayout.value("minimumWidth").toInt(), 52);
+        QCOMPARE(compactLayout.value("maximumWidth").toInt(), 280);
+        QCOMPARE(compactLayout.value("visible").toBool(), false);
+        QCOMPARE(compactLayout.value("priority").toInt(), 83);
         QCOMPARE(entry.value("dataNeeds").toStringList(),
                  QStringList({QStringLiteral("niriService")}));
         const QVariantList previewTemplates = entry.value("previewTemplates").toList();
@@ -220,7 +247,7 @@ private slots:
     {
         writePluginDir("time", "", true, true);
         PluginScanner scanner;
-        const QVariantList list = scanner.plugins();
+        const QVariantList list = pluginsUnder(scanner, m_envPluginsPath);
         QCOMPARE(list.size(), 1);
         const QVariantMap entry = list.first().toMap();
         QCOMPARE(entry.value("id").toString(), QStringLiteral("time"));
@@ -234,7 +261,7 @@ private slots:
     {
         writePluginDir("broken", "{not valid json", true, true);
         PluginScanner scanner;
-        const QVariantList list = scanner.plugins();
+        const QVariantList list = pluginsUnder(scanner, m_envPluginsPath);
         QCOMPARE(list.size(), 1);
         const QVariantMap entry = list.first().toMap();
         QCOMPARE(entry.value("id").toString(), QStringLiteral("broken"));
@@ -293,16 +320,16 @@ private slots:
     {
         writePluginDir("bad id", "", true, true);
         PluginScanner scanner;
-        QCOMPARE(scanner.plugins().size(), 0);
+        QCOMPARE(pluginsUnder(scanner, m_envPluginsPath).size(), 0);
     }
 
     void rescanPicksUpNewPlugin()
     {
         PluginScanner scanner;
-        QCOMPARE(scanner.plugins().size(), 0);
+        QCOMPARE(pluginsUnder(scanner, m_envPluginsPath).size(), 0);
         writePluginDir("latecomer", R"({"id": "latecomer"})", true, false);
         scanner.rescan();
-        QCOMPARE(scanner.plugins().size(), 1);
+        QCOMPARE(pluginsUnder(scanner, m_envPluginsPath).size(), 1);
     }
 };
 

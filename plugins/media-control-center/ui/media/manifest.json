@@ -1,0 +1,19 @@
+{
+  "id": "media",
+  "label": "Media",
+  "version": "0.2.0",
+  "anchors": ["left"],
+  "defaultPriority": 70,
+  "compact": "Compact.qml",
+  "expanded": "Expanded.qml",
+  "compactLayout": {
+    "preferredWidth": 224,
+    "minimumWidth": 188,
+    "maximumWidth": 320,
+    "visible": false,
+    "priority": 70
+  },
+  "preferredWidth": 560,
+  "preferredHeight": 360,
+  "dataNeeds": ["mpris"]
+}

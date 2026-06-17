@@ -100,6 +100,33 @@ QVariantList parsePreviewTemplates(const QJsonObject &object)
     return result;
 }
 
+QVariantMap parseCompactLayout(const QJsonObject &object)
+{
+    QVariantMap result;
+    result.insert(QStringLiteral("preferredWidth"), 0);
+    result.insert(QStringLiteral("minimumWidth"), 0);
+    result.insert(QStringLiteral("maximumWidth"), 0);
+    result.insert(QStringLiteral("visible"), true);
+    result.insert(QStringLiteral("priority"), 0);
+
+    const QJsonValue compactLayoutValue = object.value(QStringLiteral("compactLayout"));
+    if (!compactLayoutValue.isObject())
+        return result;
+
+    const QJsonObject compactLayout = compactLayoutValue.toObject();
+    result.insert(QStringLiteral("preferredWidth"),
+                  compactLayout.value(QStringLiteral("preferredWidth")).toInt(0));
+    result.insert(QStringLiteral("minimumWidth"),
+                  compactLayout.value(QStringLiteral("minimumWidth")).toInt(0));
+    result.insert(QStringLiteral("maximumWidth"),
+                  compactLayout.value(QStringLiteral("maximumWidth")).toInt(0));
+    result.insert(QStringLiteral("visible"),
+                  compactLayout.value(QStringLiteral("visible")).toBool(true));
+    result.insert(QStringLiteral("priority"),
+                  compactLayout.value(QStringLiteral("priority")).toInt(0));
+    return result;
+}
+
 void appendPath(QStringList &paths, const QString &path)
 {
     if (!path.trimmed().isEmpty())
@@ -210,6 +237,7 @@ QVariantMap fallbackEntry(const QString &absoluteDirPath, const QString &id)
     entry.insert(QStringLiteral("expanded"), QFile::exists(expandedPath) ? QLatin1String(kExpandedFile) : QString());
     entry.insert(QStringLiteral("preferredWidth"), 0);
     entry.insert(QStringLiteral("preferredHeight"), 0);
+    entry.insert(QStringLiteral("compactLayout"), parseCompactLayout(QJsonObject()));
     entry.insert(QStringLiteral("dataNeeds"), QVariantList());
     entry.insert(QStringLiteral("previewTemplates"), QVariantList());
     entry.insert(QStringLiteral("source"), QStringLiteral("fallback"));
@@ -345,6 +373,7 @@ QVariantMap PluginScanner::parseManifestFile(const QString &manifestPath,
                  object.value(QStringLiteral("preferredWidth")).toInt(0));
     entry.insert(QStringLiteral("preferredHeight"),
                  object.value(QStringLiteral("preferredHeight")).toInt(0));
+    entry.insert(QStringLiteral("compactLayout"), parseCompactLayout(object));
 
     const QJsonValue dataNeeds = object.value(QStringLiteral("dataNeeds"));
     entry.insert(QStringLiteral("dataNeeds"),

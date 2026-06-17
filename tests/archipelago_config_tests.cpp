@@ -15,6 +15,7 @@ private slots:
     void reportsInvalidJsonAndKeepsDefaults();
     void validatesRangesAndTypes();
     void acceptsUnknownPluginModules();
+    void unknownPluginModuleWithoutExplicitWidthStaysDynamic();
     void mapsConfiguredMouseButtons();
 };
 
@@ -149,6 +150,7 @@ void ArchipelagoConfigTests::loadsAnchorsModulesFontsAndSizes()
     const QVariantMap media = moduleConfig(config, QStringLiteral("community.media"));
     QCOMPARE(media.value(QStringLiteral("enabled")).toBool(), false);
     QCOMPARE(media.value(QStringLiteral("priority")).toInt(), 0);
+    QVERIFY(!media.contains(QStringLiteral("width")));
 }
 
 void ArchipelagoConfigTests::stripsComments()
@@ -265,6 +267,34 @@ void ArchipelagoConfigTests::acceptsUnknownPluginModules()
     QCOMPARE(module.value(QStringLiteral("priority")).toInt(), 42);
     QCOMPARE(module.value(QStringLiteral("width")).toInt(), 180);
     QCOMPARE(config.moduleAction(QStringLiteral("community.weather"), QStringLiteral("primary")), QStringLiteral("toggle"));
+}
+
+void ArchipelagoConfigTests::unknownPluginModuleWithoutExplicitWidthStaysDynamic()
+{
+    QTemporaryDir configHome;
+    QVERIFY(configHome.isValid());
+    qputenv("XDG_CONFIG_HOME", configHome.path().toLocal8Bit());
+
+    const QByteArray json = R"json({
+        "anchors": {
+            "right": ["media"]
+        },
+        "modules": {
+            "media": {
+                "enabled": true,
+                "priority": 60
+            }
+        }
+    })json";
+    QVERIFY(!writeConfig(configHome, json).isEmpty());
+
+    ArchipelagoConfig config;
+    QCOMPARE(config.configError(), QString());
+
+    const QVariantMap module = moduleConfig(config, QStringLiteral("media"));
+    QCOMPARE(module.value(QStringLiteral("enabled")).toBool(), true);
+    QCOMPARE(module.value(QStringLiteral("priority")).toInt(), 60);
+    QVERIFY(!module.contains(QStringLiteral("width")));
 }
 
 void ArchipelagoConfigTests::mapsConfiguredMouseButtons()

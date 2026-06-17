@@ -30,6 +30,7 @@ Item {
     // Public API consumed by ArchipelagoShell:
     //   entries[id] = {
     //       id, compact, expanded, preferredWidth, preferredHeight,
+    //       compactLayout,
     //       previewTemplates: { templateId -> metadata + Component }
     //   }
     // compact / expanded are Component references (or null if missing
@@ -88,7 +89,8 @@ Item {
             expanded: expanded.component,
             previewTemplates: previewTemplates,
             preferredWidth: Number(manifest.preferredWidth || 0),
-            preferredHeight: Number(manifest.preferredHeight || 0)
+            preferredHeight: Number(manifest.preferredHeight || 0),
+            compactLayout: manifest.compactLayout || ({})
         };
     }
 

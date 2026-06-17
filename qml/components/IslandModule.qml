@@ -10,6 +10,11 @@ import ArchipelagoCore
 //   property int    compactLevel     (framework-injected)
 //   property string moduleId         (framework-injected; null-safe)
 //   property var    shellWindow      (framework-injected, optional)
+//   property int    preferredCompactWidth   (plugin-set, optional)
+//   property int    minimumCompactWidth     (plugin-set, optional)
+//   property int    maximumCompactWidth     (plugin-set, optional)
+//   property bool   compactVisibleRequested (plugin-set, optional)
+//   property int    compactLayoutPriority   (plugin-set, optional)
 //   property var    handlers         (plugin-set, optional)
 //       handlers.primaryClicked()                  -> bool
 //       handlers.secondaryClicked(action: string)   -> bool
@@ -21,6 +26,7 @@ Item {
     id: root
 
     required property string moduleId
+    property string anchorName: ""
     property var host: null
     property int compactLevel: 0
     readonly property bool expanded: host && host.expandedModule === moduleId
@@ -32,16 +38,49 @@ Item {
     readonly property real expandedMaskWidth: expandedSurface.maskWidth
     readonly property real expandedMaskHeight: expandedSurface.maskHeight
     readonly property bool compactVisible: !expanded || expandedSurface.collapsed
-    readonly property var moduleConfig: ArchipelagoConfig.moduleConfig(moduleId)
-    readonly property int configuredWidth: Number(moduleConfig.width || 120)
+    readonly property var rawModuleConfig: ArchipelagoConfig.moduleConfig(moduleId)
+    readonly property var moduleConfig: rawModuleConfig ? rawModuleConfig : ({})
+    readonly property var moduleEntry: root.host && root.host.shellWindow && root.host.shellWindow.moduleEntry
+        ? root.host.shellWindow.moduleEntry(root.moduleId)
+        : ({})
+    readonly property var manifestCompactLayout: moduleEntry && moduleEntry.compactLayout
+        ? moduleEntry.compactLayout
+        : ({})
+    readonly property int configuredWidth: moduleConfig.width !== undefined
+        ? Number(moduleConfig.width || 0)
+        : 0
     readonly property var moduleRegistrySnapshot: root.host && root.host.shellWindow
         ? root.host.shellWindow.moduleRegistry
         : ({})
+    readonly property var assignedLayout: root.host && root.host.layoutFor
+        ? root.host.layoutFor(root.moduleId)
+        : ({
+              "visible": true,
+              "targetWidth": configuredWidth > 0 ? configuredWidth : 120,
+              "targetOpacity": 1,
+              "collapseReason": ""
+          })
+    readonly property bool layoutVisible: assignedLayout.visible !== false
+    readonly property real targetLayoutOpacity: assignedLayout.targetOpacity !== undefined
+        ? Number(assignedLayout.targetOpacity || 0)
+        : 1
+    readonly property var layoutRequest: ({
+            "moduleId": root.moduleId,
+            "anchor": root.anchorName,
+            "preferredWidth": root.effectivePreferredWidth(),
+            "minimumWidth": root.effectiveMinimumWidth(),
+            "maximumWidth": root.effectiveMaximumWidth(),
+            "visibleRequested": root.effectiveVisibleRequested(),
+            "priority": root.effectivePriority()
+        })
 
-    width: configuredWidth
+    width: assignedLayout.targetWidth !== undefined
+        ? Number(assignedLayout.targetWidth || 0)
+        : (configuredWidth > 0 ? configuredWidth : 120)
     height: ArchipelagoConfig.islandHeight
-    opacity: compactVisible ? 1 : 0
-    enabled: !expanded && !expandedSurface.mounted
+    opacity: (compactVisible ? 1 : 0) * targetLayoutOpacity
+    visible: layoutVisible || opacity > 0.01 || width > 0.5 || expandedSurface.mounted
+    enabled: layoutVisible && !expanded && !expandedSurface.mounted
 
     Behavior on opacity {
         enabled: !expandedSurface.collapsed
@@ -66,6 +105,66 @@ Item {
             console.warn("[IslandModule] handler", name, "threw:", e);
             return false;
         }
+    }
+
+    function hasCompactProperty(name) {
+        const item = compactLoader.item;
+        return !!item && item[name] !== undefined;
+    }
+
+    function compactNumberProperty(name, fallback) {
+        const item = compactLoader.item;
+        if (!item || item[name] === undefined || item[name] === null)
+            return fallback;
+        const value = Number(item[name]);
+        return isFinite(value) ? Math.round(value) : fallback;
+    }
+
+    function compactBoolProperty(name, fallback) {
+        const item = compactLoader.item;
+        if (!item || item[name] === undefined || item[name] === null)
+            return fallback;
+        return item[name] === true;
+    }
+
+    function effectivePreferredWidth() {
+        if (configuredWidth > 0)
+            return configuredWidth;
+        if (hasCompactProperty("preferredCompactWidth"))
+            return Math.max(0, compactNumberProperty("preferredCompactWidth", 0));
+        return Math.max(0, Number(manifestCompactLayout.preferredWidth || 0));
+    }
+
+    function effectiveMinimumWidth() {
+        if (hasCompactProperty("minimumCompactWidth"))
+            return Math.max(0, compactNumberProperty("minimumCompactWidth", 44));
+        const manifestValue = Number(manifestCompactLayout.minimumWidth || 0);
+        return manifestValue > 0 ? manifestValue : 44;
+    }
+
+    function effectiveMaximumWidth() {
+        if (hasCompactProperty("maximumCompactWidth"))
+            return Math.max(0, compactNumberProperty("maximumCompactWidth", 360));
+        const manifestValue = Number(manifestCompactLayout.maximumWidth || 0);
+        return manifestValue > 0 ? manifestValue : 360;
+    }
+
+    function effectiveVisibleRequested() {
+        if (hasCompactProperty("compactVisibleRequested"))
+            return compactBoolProperty("compactVisibleRequested", true);
+        if (manifestCompactLayout.visible !== undefined)
+            return manifestCompactLayout.visible !== false;
+        return true;
+    }
+
+    function effectivePriority() {
+        if (moduleConfig.priority !== undefined)
+            return Number(moduleConfig.priority || 0);
+        if (hasCompactProperty("compactLayoutPriority"))
+            return compactNumberProperty("compactLayoutPriority", 0);
+        if (manifestCompactLayout.priority !== undefined)
+            return Number(manifestCompactLayout.priority || 0);
+        return Number(moduleEntry.defaultPriority || 0);
     }
 
     function openExpanded(originRect) {
