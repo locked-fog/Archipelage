@@ -134,7 +134,13 @@ QVariantMap defaultModules()
 
 QVariantMap defaultModuleConfig()
 {
-    return makeModule(true, 0, QString(), {}, {}, 120);
+    QVariantMap module;
+    module.insert(QStringLiteral("enabled"), true);
+    module.insert(QStringLiteral("priority"), 0);
+    module.insert(QStringLiteral("compact"), QString());
+    module.insert(QStringLiteral("actions"), QVariantMap());
+    module.insert(QStringLiteral("scroll"), QVariantMap());
+    return module;
 }
 
 bool isAllowedAnchor(const QString &anchor)
@@ -488,14 +494,23 @@ ArchipelagoConfig::LoadedConfig ArchipelagoConfig::parseConfigObject(const QJson
                                          module.value(QStringLiteral("compact")).toString(),
                                          &errors,
                                          QStringLiteral("modules.%1.compact").arg(moduleId)));
-                module.insert(QStringLiteral("width"),
-                              jsonIntRange(moduleObject,
-                                           QStringLiteral("width"),
-                                           module.value(QStringLiteral("width")).toInt(),
-                                           44,
-                                           360,
-                                           &errors,
-                                           QStringLiteral("modules.%1.width").arg(moduleId)));
+                if (moduleObject.contains(QStringLiteral("width")) || module.contains(QStringLiteral("width"))) {
+                    const int fallbackWidth = module.contains(QStringLiteral("width"))
+                        ? module.value(QStringLiteral("width")).toInt()
+                        : 0;
+                    const int width = jsonIntRange(moduleObject,
+                                                   QStringLiteral("width"),
+                                                   fallbackWidth,
+                                                   44,
+                                                   360,
+                                                   &errors,
+                                                   QStringLiteral("modules.%1.width").arg(moduleId));
+                    if (width > 0) {
+                        module.insert(QStringLiteral("width"), width);
+                    } else {
+                        module.remove(QStringLiteral("width"));
+                    }
+                }
 
                 const auto mergeStringMap = [&errors, &moduleObject, &moduleId](const QString &key, QVariantMap fallback) {
                     const QJsonValue value = moduleObject.value(key);
