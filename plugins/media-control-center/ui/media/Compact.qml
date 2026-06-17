@@ -282,20 +282,28 @@ Item {
         visible: root.contentVisible
 
         CompactTrackLayer {
-            anchors.fill: parent
+            objectName: "outgoingTrackLayer"
+            y: 0
+            width: parent.width
+            height: parent.height
             trackData: root.previousTrackState
             interactionEnabled: false
             visible: root.transitionActive
             x: -root.transitionDirection * root.transitionProgress * root.slideDistance
             opacity: 1
+            z: 1
         }
 
         CompactTrackLayer {
-            anchors.fill: parent
+            objectName: "incomingTrackLayer"
+            y: 0
+            width: parent.width
+            height: parent.height
             trackData: root.currentTrackState
             interactionEnabled: !root.transitionActive
             x: root.transitionActive ? root.transitionDirection * (1 - root.transitionProgress) * root.slideDistance : 0
             opacity: 1
+            z: 2
         }
     }
 
