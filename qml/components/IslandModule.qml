@@ -19,6 +19,10 @@ import ArchipelagoCore
 //       handlers.primaryClicked()                  -> bool
 //       handlers.secondaryClicked(action: string)   -> bool
 //       handlers.wheelMoved(delta: int)             -> void
+//       handlers.pointerPressed(localX, localY, button, buttons)  -> void
+//       handlers.pointerMoved(localX, localY, buttons)            -> void
+//       handlers.pointerReleased(localX, localY, button, buttons) -> void
+//       handlers.pointerCanceled()                      -> void
 //
 // Returning false from a handler tells the framework to apply its
 // default behaviour (typically host.activateModule → open expanded).
@@ -105,6 +109,16 @@ Item {
             console.warn("[IslandModule] handler", name, "threw:", e);
             return false;
         }
+    }
+
+    function compactPointerPoint(x, y) {
+        const item = compactLoader.item;
+        if (!item || !capsule)
+            return {
+                "x": x,
+                "y": y
+            };
+        return capsule.mapToItem(item, x, y);
     }
 
     function hasCompactProperty(name) {
@@ -194,6 +208,25 @@ Item {
 
         onWheelMoved: function(angleDelta) {
             root.invokeHandler("wheelMoved", angleDelta);
+        }
+
+        onPointerPressed: function(x, y, button, buttons) {
+            const point = root.compactPointerPoint(x, y);
+            root.invokeHandler("pointerPressed", point.x, point.y, button, buttons);
+        }
+
+        onPointerMoved: function(x, y, buttons) {
+            const point = root.compactPointerPoint(x, y);
+            root.invokeHandler("pointerMoved", point.x, point.y, buttons);
+        }
+
+        onPointerReleased: function(x, y, button, buttons) {
+            const point = root.compactPointerPoint(x, y);
+            root.invokeHandler("pointerReleased", point.x, point.y, button, buttons);
+        }
+
+        onPointerCanceled: {
+            root.invokeHandler("pointerCanceled");
         }
 
         Loader {

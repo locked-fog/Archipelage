@@ -7,6 +7,16 @@ Item {
 
     property string moduleId: "media"
     property var shellWindow: null
+    property var currentTrackState: ({
+        "key": "__empty__",
+        "title": "No active media player",
+        "subtitle": "Start an MPRIS-compatible player",
+        "album": "",
+        "artUrl": ""
+    })
+    property var previousTrackState: currentTrackState
+    property bool headerTransitionActive: false
+    property real headerFadeProgress: 1
     readonly property string clientId: "expanded:" + moduleId
     readonly property real progress: MediaService.duration > 0 ? Math.max(0, Math.min(1, MediaService.position / MediaService.duration)) : 0
 
@@ -35,80 +45,98 @@ Item {
         return MediaService.loopStatus === "Track" || MediaService.loopStatus === "Playlist";
     }
 
-    Component.onCompleted: MediaService.registerClient(clientId)
+    function loopMode() {
+        if (MediaService.loopStatus === "Track")
+            return "track";
+        if (MediaService.loopStatus === "Playlist")
+            return "playlist";
+        return "off";
+    }
+
+    function trackState() {
+        return {
+            "key": MediaService.available
+                ? [MediaService.activeService, MediaService.title, MediaService.artist, MediaService.album, MediaService.artUrl, String(MediaService.duration)].join("|")
+                : "__empty__",
+            "title": MediaService.available ? MediaService.title : "No active media player",
+            "subtitle": MediaService.available ? (MediaService.artist || MediaService.identity) : "Start an MPRIS-compatible player",
+            "album": MediaService.album,
+            "artUrl": MediaService.artUrl
+        };
+    }
+
+    function syncTrackState() {
+        const nextState = trackState();
+        if (currentTrackState.key === undefined) {
+            currentTrackState = nextState;
+            previousTrackState = nextState;
+            return;
+        }
+        if (currentTrackState.key === nextState.key) {
+            currentTrackState = nextState;
+            return;
+        }
+        previousTrackState = currentTrackState;
+        currentTrackState = nextState;
+        headerTransitionActive = true;
+        headerFadeProgress = 0;
+        headerFade.restart();
+    }
+
+    Component.onCompleted: {
+        MediaService.registerClient(clientId);
+        currentTrackState = trackState();
+        previousTrackState = currentTrackState;
+    }
     Component.onDestruction: MediaService.releaseClient(clientId)
+
+    Connections {
+        target: MediaService
+
+        function onStateChanged() {
+            root.syncTrackState();
+        }
+    }
+
+    NumberAnimation {
+        id: headerFade
+
+        target: root
+        property: "headerFadeProgress"
+        from: 0
+        to: 1
+        duration: 260
+        easing.type: Easing.OutCubic
+        onStopped: {
+            root.headerTransitionActive = false;
+            root.previousTrackState = root.currentTrackState;
+            root.headerFadeProgress = 1;
+        }
+    }
 
     Item {
         anchors.fill: parent
         anchors.margins: 20
 
-        Rectangle {
-            id: art
+        Item {
+            id: headerArea
 
-            width: 108
-            height: 108
-            radius: 8
-            color: StyleTokens.module
-            clip: true
-
-            Image {
-                anchors.fill: parent
-                source: MediaService.artUrl
-                fillMode: Image.PreserveAspectCrop
-                visible: status === Image.Ready
-            }
-
-            MediaIcon {
-                anchors.centerIn: parent
-                width: 34
-                height: 34
-                icon: "note"
-                color: StyleTokens.textSecondary
-                visible: MediaService.artUrl === ""
-            }
-
-        }
-
-        Column {
-            anchors.left: art.right
+            anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.leftMargin: 18
-            spacing: 4
+            height: 108
 
-            Text {
-                width: parent.width
-                text: MediaService.available ? MediaService.title : "No active media player"
-                color: StyleTokens.textPrimary
-                font.pixelSize: 22
-                font.family: ArchipelagoConfig.textFontFamily
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-                maximumLineCount: 2
-                wrapMode: Text.Wrap
+            TrackHeaderLayer {
+                anchors.fill: parent
+                stateData: root.previousTrackState
+                opacity: root.headerTransitionActive ? (1 - root.headerFadeProgress) : 0
             }
 
-            Text {
-                width: parent.width
-                text: MediaService.available ? (MediaService.artist || MediaService.identity) : "Start an MPRIS-compatible player"
-                color: StyleTokens.textSecondary
-                font.pixelSize: 13
-                font.family: ArchipelagoConfig.textFontFamily
-                elide: Text.ElideRight
-                maximumLineCount: 1
+            TrackHeaderLayer {
+                anchors.fill: parent
+                stateData: root.currentTrackState
+                opacity: root.headerTransitionActive ? root.headerFadeProgress : 1
             }
-
-            Text {
-                width: parent.width
-                text: MediaService.album
-                color: StyleTokens.textMuted
-                font.pixelSize: 12
-                font.family: ArchipelagoConfig.textFontFamily
-                elide: Text.ElideRight
-                maximumLineCount: 1
-                visible: text !== ""
-            }
-
         }
 
         Row {
@@ -116,7 +144,7 @@ Item {
 
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.top: art.bottom
+            anchors.top: headerArea.bottom
             anchors.topMargin: 18
             spacing: 8
 
@@ -231,12 +259,6 @@ Item {
             }
 
             ControlButton {
-                icon: "stop"
-                enabled: MediaService.canControl
-                onClicked: MediaService.stop()
-            }
-
-            ControlButton {
                 icon: "next"
                 enabled: MediaService.canGoNext
                 onClicked: MediaService.next()
@@ -245,6 +267,8 @@ Item {
             ControlButton {
                 icon: root.loopIcon()
                 active: root.loopActive()
+                mode: root.loopMode()
+                accentColor: mode === "track" ? StyleTokens.success : StyleTokens.accent
                 enabled: MediaService.canControl
                 onClicked: MediaService.toggleLoopStatus()
             }
@@ -280,6 +304,84 @@ Item {
 
         }
 
+    }
+
+    component TrackHeaderLayer: Item {
+        id: header
+
+        property var stateData: ({
+            "title": "No active media player",
+            "subtitle": "Start an MPRIS-compatible player",
+            "album": "",
+            "artUrl": ""
+        })
+
+        Rectangle {
+            id: art
+
+            width: 108
+            height: 108
+            radius: 8
+            color: StyleTokens.module
+            clip: true
+
+            Image {
+                anchors.fill: parent
+                source: header.stateData.artUrl || ""
+                fillMode: Image.PreserveAspectCrop
+                visible: status === Image.Ready
+            }
+
+            MediaIcon {
+                anchors.centerIn: parent
+                width: 34
+                height: 34
+                icon: "note"
+                color: StyleTokens.textSecondary
+                visible: (header.stateData.artUrl || "") === ""
+            }
+        }
+
+        Column {
+            anchors.left: art.right
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.leftMargin: 18
+            spacing: 4
+
+            Text {
+                width: parent.width
+                text: header.stateData.title || ""
+                color: StyleTokens.textPrimary
+                font.pixelSize: 22
+                font.family: ArchipelagoConfig.textFontFamily
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+                maximumLineCount: 2
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                width: parent.width
+                text: header.stateData.subtitle || ""
+                color: StyleTokens.textSecondary
+                font.pixelSize: 13
+                font.family: ArchipelagoConfig.textFontFamily
+                elide: Text.ElideRight
+                maximumLineCount: 1
+            }
+
+            Text {
+                width: parent.width
+                text: header.stateData.album || ""
+                color: StyleTokens.textMuted
+                font.pixelSize: 12
+                font.family: ArchipelagoConfig.textFontFamily
+                elide: Text.ElideRight
+                maximumLineCount: 1
+                visible: text !== ""
+            }
+        }
     }
 
     component MediaSlider: Item {
@@ -360,14 +462,20 @@ Item {
         property string icon: "play"
         property bool emphasized: false
         property bool active: false
+        property string mode: "default"
+        property color accentColor: StyleTokens.accent
 
         signal clicked()
 
         width: emphasized ? 48 : 36
         height: emphasized ? 48 : 36
         radius: width / 2
-        color: !enabled ? StyleTokens.track : (emphasized || active ? StyleTokens.accent : StyleTokens.module)
+        color: !enabled ? StyleTokens.track
+            : (emphasized ? accentColor : (active ? accentColor : StyleTokens.module))
         opacity: enabled ? 1 : 0.45
+        border.width: mode === "track" ? 2 : (mode === "playlist" ? 1 : 0)
+        border.color: mode === "track" ? StyleTokens.textPrimary
+            : (mode === "playlist" ? accentColor : StyleTokens.transparent)
 
         MediaIcon {
             anchors.centerIn: parent

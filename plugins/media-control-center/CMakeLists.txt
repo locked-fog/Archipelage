@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ArchipelagoMediaControlCenter VERSION 0.2.0 LANGUAGES CXX)
+project(ArchipelagoMediaControlCenter VERSION 0.3.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,6 +16,10 @@ endif()
 enable_testing()
 
 set(MEDIA_MODULE_SOURCES
+    backend/CavaService.cpp
+    backend/CavaService.h
+    backend/CavaSupport.cpp
+    backend/CavaSupport.h
     backend/MediaService.cpp
     backend/MediaService.h
     backend/MprisModel.cpp
@@ -63,6 +67,23 @@ target_link_libraries(media_model_tests PRIVATE
 )
 
 add_test(NAME media_model COMMAND media_model_tests)
+
+add_executable(cava_service_tests
+    tests/cava_service_tests.cpp
+    backend/CavaSupport.cpp
+    backend/CavaSupport.h
+)
+
+target_include_directories(cava_service_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend
+)
+
+target_link_libraries(cava_service_tests PRIVATE
+    Qt6::Core
+    Qt6::Test
+)
+
+add_test(NAME cava_service COMMAND cava_service_tests)
 
 add_executable(media_qml_tests
     tests/media_qml_tests.cpp

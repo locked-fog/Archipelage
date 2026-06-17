@@ -43,6 +43,7 @@ private slots:
     void initTestCase()
     {
         qputenv("ARCHIPELAGO_MEDIA_DISABLE_DBUS_FOR_TESTS", "1");
+        qputenv("ARCHIPELAGO_MEDIA_DISABLE_CAVA_FOR_TESTS", "1");
         m_engine.addImportPath(QStringLiteral(MEDIA_PLUGIN_BUILD_DIR));
         m_engine.addImportPath(sourcePath(QStringLiteral("tests/qml")));
     }

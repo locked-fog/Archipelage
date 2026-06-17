@@ -1,15 +1,15 @@
 {
   "id": "media",
   "label": "Media",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "anchors": ["left"],
   "defaultPriority": 70,
   "compact": "Compact.qml",
   "expanded": "Expanded.qml",
   "compactLayout": {
-    "preferredWidth": 224,
-    "minimumWidth": 188,
-    "maximumWidth": 320,
+    "preferredWidth": 248,
+    "minimumWidth": 204,
+    "maximumWidth": 348,
     "visible": false,
     "priority": 70
   },

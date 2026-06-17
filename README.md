@@ -155,8 +155,8 @@ makepkg -f --cleanbuild
 Publish to a local pacman repository:
 
 ```bash
-install -Dm644 archipelago-1.1.0-1-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
-repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-1.1.0-1-x86_64.pkg.tar.zst
+install -Dm644 archipelago-1.1.0-2-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
+repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-1.1.0-2-x86_64.pkg.tar.zst
 ```
 
 ## License
