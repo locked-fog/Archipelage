@@ -4,7 +4,7 @@ Archipelago is a niri-first Quickshell system shell built from multiple floating
 
 ## Status
 
-Version: `1.0.0-r1`
+Version: `1.1.0-r1`
 
 This release is an MVP for niri:
 
@@ -17,6 +17,7 @@ This release is an MVP for niri:
 - Hot-reloaded JSON config at `~/.config/archipelago/config.json`.
 - Minimal `ArchipelagoCore` QML API for configuration, style tokens, and plugin discovery.
 - Legacy backend service singletons kept separate from the core API while system features move toward plugin-owned modules.
+- Dynamic compact layout negotiation so plugins can request runtime width, visibility, and priority without taking host visibility control directly.
 
 Hyprland support is intentionally limited to a future adapter boundary.
 
@@ -146,16 +147,16 @@ systemctl --user enable --now archipelago.service
 Build the package from the current git tag:
 
 ```bash
-git archive --format=tar.gz --prefix=archipelago-1.0.0/ \
-  -o archipelago-1.0.0.tar.gz v1.0.0-r1
+git archive --format=tar.gz --prefix=archipelago-1.1.0/ \
+  -o archipelago-1.1.0.tar.gz v1.1.0-r1
 makepkg -f --cleanbuild
 ```
 
 Publish to a local pacman repository:
 
 ```bash
-install -Dm644 archipelago-1.0.0-1-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
-repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-1.0.0-1-x86_64.pkg.tar.zst
+install -Dm644 archipelago-1.1.0-1-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
+repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-1.1.0-1-x86_64.pkg.tar.zst
 ```
 
 ## License

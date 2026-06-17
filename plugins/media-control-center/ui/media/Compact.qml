@@ -7,6 +7,9 @@ Item {
 
     property int compactLevel: 0
     property string moduleId: "media"
+    readonly property int layoutPaddingLeft: 10
+    readonly property int layoutPaddingRight: 8
+    readonly property int layoutSpacing: 8
     property var handlers: ({
         "primaryClicked": function() {
             return false;
@@ -26,55 +29,48 @@ Item {
     readonly property string titleText: MediaService.available ? (MediaService.title || MediaService.identity || "Media") : ""
     readonly property int coverSize: compactLevel >= 2 ? 24 : 28
     readonly property int controlSize: compactLevel >= 2 ? 22 : 24
-
-    function moduleItem() {
-        let item = root.parent;
-        while (item) {
-            if (item.moduleId !== undefined && item.openExpanded !== undefined)
-                return item;
-
-            item = item.parent;
-        }
-        return null;
-    }
-
-    function setHostVisible(nextVisible) {
-        const item = moduleItem();
-        if (item)
-            item.visible = nextVisible;
-
-    }
-
-    function updateHostVisibility() {
-        setHostVisible(MediaService.available);
+    readonly property int compactLayoutPriority: 70
+    readonly property bool compactVisibleRequested: MediaService.available
+    readonly property int minimumCompactWidth: compactLevel >= 2 ? 164 : 188
+    readonly property int maximumCompactWidth: compactLevel >= 2 ? 276 : 320
+    readonly property int preferredCompactWidth: {
+        if (!compactVisibleRequested)
+            return minimumCompactWidth;
+        const measuredTitleWidth = Math.ceil(titleMeasure.contentWidth);
+        const preferredTitleWidth = Math.max(compactLevel >= 2 ? 46 : 54,
+                                             Math.min(compactLevel >= 2 ? 96 : 132,
+                                                      measuredTitleWidth + 12));
+        const chromeWidth = layoutPaddingLeft + layoutPaddingRight
+            + (compactLevel >= 2 ? 16 : 20)
+            + coverSize
+            + controlSize * 3
+            + layoutSpacing * 5;
+        return Math.max(minimumCompactWidth,
+                        Math.min(maximumCompactWidth, chromeWidth + preferredTitleWidth));
     }
 
     Component.onCompleted: {
         MediaService.registerClient(clientId);
-        updateHostVisibility();
     }
     Component.onDestruction: {
-        setHostVisible(true);
         MediaService.releaseClient(clientId);
     }
 
-    Connections {
-        function onStateChanged() {
-            root.updateHostVisibility();
-        }
+    Text {
+        id: titleMeasure
 
-        function onPlayersChanged() {
-            root.updateHostVisibility();
-        }
-
-        target: MediaService
+        visible: false
+        text: root.titleText
+        font.pixelSize: compactLevel >= 2 ? 11 : 12
+        font.family: ArchipelagoConfig.textFontFamily
+        font.weight: Font.DemiBold
     }
 
     Row {
         anchors.fill: parent
-        anchors.leftMargin: 10
-        anchors.rightMargin: 8
-        spacing: 8
+        anchors.leftMargin: root.layoutPaddingLeft
+        anchors.rightMargin: root.layoutPaddingRight
+        spacing: root.layoutSpacing
         visible: MediaService.available
 
         AudioBars {

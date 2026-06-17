@@ -23,6 +23,22 @@ private:
         return QUrl::fromLocalFile(sourcePath(relativePath));
     }
 
+    std::unique_ptr<QObject> create(const QString &relativePath, QString *errorOut = nullptr)
+    {
+        QQmlComponent component(&m_engine, sourceUrl(relativePath));
+        if (component.isLoading()) {
+            QSignalSpy spy(&component, &QQmlComponent::statusChanged);
+            if (!spy.wait(1000))
+                return {};
+        }
+        if (component.isError())
+            qWarning().noquote() << component.errorString();
+
+        if (errorOut)
+            *errorOut = component.errorString();
+        return std::unique_ptr<QObject>(component.create());
+    }
+
 private slots:
     void initTestCase()
     {
@@ -39,18 +55,27 @@ private slots:
         };
 
         for (const QString &file : files) {
-            QQmlComponent component(&m_engine, sourceUrl(file));
-            if (component.isLoading()) {
-                QSignalSpy spy(&component, &QQmlComponent::statusChanged);
-                QVERIFY(spy.wait(1000));
-            }
-            if (component.isError())
-                qWarning().noquote() << component.errorString();
-            QCOMPARE(component.status(), QQmlComponent::Ready);
-
-            std::unique_ptr<QObject> object(component.create());
-            QVERIFY2(object != nullptr, qPrintable(component.errorString()));
+            QString error;
+            std::unique_ptr<QObject> object = create(file, &error);
+            QVERIFY2(object != nullptr, qPrintable(error));
         }
+    }
+
+    void compactExposesDynamicLayoutProperties()
+    {
+        QString error;
+        std::unique_ptr<QObject> object = create(QStringLiteral("ui/media/Compact.qml"), &error);
+        QVERIFY2(object != nullptr, qPrintable(error));
+
+        QVERIFY(object->property("preferredCompactWidth").isValid());
+        QVERIFY(object->property("minimumCompactWidth").isValid());
+        QVERIFY(object->property("maximumCompactWidth").isValid());
+        QVERIFY(object->property("compactVisibleRequested").isValid());
+        QVERIFY(object->property("compactLayoutPriority").isValid());
+
+        QCOMPARE(object->property("compactVisibleRequested").toBool(), false);
+        QVERIFY(object->property("minimumCompactWidth").toInt() >= 44);
+        QVERIFY(object->property("maximumCompactWidth").toInt() >= object->property("minimumCompactWidth").toInt());
     }
 };
 

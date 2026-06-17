@@ -1,11 +1,18 @@
 {
   "id": "time",
   "label": "Time",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "anchors": ["center"],
   "defaultPriority": 50,
   "compact": "Compact.qml",
   "expanded": "Expanded.qml",
+  "compactLayout": {
+    "preferredWidth": 108,
+    "minimumWidth": 96,
+    "maximumWidth": 132,
+    "visible": true,
+    "priority": 50
+  },
   "preferredWidth": 0,
   "preferredHeight": 360,
   "dataNeeds": []

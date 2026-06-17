@@ -1,10 +1,13 @@
 # Plugin Dynamic Layout Plan
 
+Status: implemented for `v1.1.0-r1`.
+
 ## Summary
 
 Archipelago currently gives each island module a mostly static width from user config. A richer plugin such as the media control center needs to adapt its compact width to runtime content and controls. The shell should let plugins publish layout intent, then let the host schedule widths, positions, and visibility with smooth transitions.
 
-This document is a proposal only. It does not require changing existing plugin packages immediately.
+This document captures the adopted contract and host scheduling model. Existing
+plugins remain compatible because every dynamic compact layout field is optional.
 
 ## Goals
 

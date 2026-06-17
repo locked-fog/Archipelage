@@ -25,6 +25,32 @@ UI plugins use the same structure as the built-in `Time` example:
   Expanded.qml
 ```
 
+`manifest.json` may also declare optional compact layout defaults:
+
+```json
+{
+  "compactLayout": {
+    "preferredWidth": 180,
+    "minimumWidth": 44,
+    "maximumWidth": 320,
+    "visible": true,
+    "priority": 70
+  }
+}
+```
+
+`Compact.qml` may expose runtime layout requests:
+
+```qml
+property int preferredCompactWidth
+property int minimumCompactWidth
+property int maximumCompactWidth
+property bool compactVisibleRequested
+property int compactLayoutPriority
+```
+
+The shell treats these as requests. User config and host space constraints stay authoritative. `modules.<id>.width` now acts as a preferred compact width, not a hard final width.
+
 Archipelago scans these roots in order:
 
 1. `$ARCHIPELAGO_PLUGINS_DIR` if set. This overrides the user/system third-party roots below.
