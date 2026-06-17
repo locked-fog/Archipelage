@@ -14,6 +14,10 @@ Rectangle {
     signal primaryClicked()
     signal secondaryClicked()
     signal wheelMoved(int angleDelta)
+    signal pointerPressed(real x, real y, int button, int buttons)
+    signal pointerMoved(real x, real y, int buttons)
+    signal pointerReleased(real x, real y, int button, int buttons)
+    signal pointerCanceled()
 
     radius: height / 2
     color: fillColor
@@ -55,6 +59,23 @@ Rectangle {
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         enabled: root.interactive
         hoverEnabled: true
+        preventStealing: true
+
+        onPressed: function(mouse) {
+            root.pointerPressed(mouse.x, mouse.y, mouse.button, mouse.buttons);
+        }
+
+        onPositionChanged: function(mouse) {
+            root.pointerMoved(mouse.x, mouse.y, mouse.buttons);
+        }
+
+        onReleased: function(mouse) {
+            root.pointerReleased(mouse.x, mouse.y, mouse.button, mouse.buttons);
+        }
+
+        onCanceled: {
+            root.pointerCanceled();
+        }
 
         onClicked: function(mouse) {
             if (mouse.button === Qt.RightButton)

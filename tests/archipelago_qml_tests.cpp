@@ -605,6 +605,191 @@ Item {
         }
         return true;
     }
+
+    bool islandModuleForwardsPointerHandlersToCompactView()
+    {
+        const QByteArray qml = R"QML(
+import QtQuick
+import ArchipelagoCore
+import "file:///)QML" ARCHIPELAGO_SOURCE_DIR R"QML(/qml/components"
+
+Item {
+    id: root
+
+    width: 220
+    height: 64
+    property var moduleRegistry: ({
+        "swipe": {
+            "compact": swipeCompact,
+            "expanded": null,
+            "anchors": ["left"],
+            "defaultPriority": 80,
+            "compactLayout": {
+                "preferredWidth": 120,
+                "minimumWidth": 80,
+                "maximumWidth": 140
+            }
+        }
+    })
+    property var eventLog: []
+    property bool activated: false
+
+    function moduleEntry(moduleId) {
+        return moduleRegistry && moduleId ? (moduleRegistry[moduleId] || {}) : {};
+    }
+
+    function compactComponentFor(moduleId) {
+        return moduleEntry(moduleId).compact || null;
+    }
+
+    function expandedComponentFor(moduleId) {
+        return moduleEntry(moduleId).expanded || null;
+    }
+
+    function record(eventName) {
+        eventLog = eventLog.concat([eventName]);
+    }
+
+    function eventLogText() {
+        return eventLog.join(",");
+    }
+
+    function resetState() {
+        eventLog = [];
+        activated = false;
+    }
+
+    function capsuleItem() {
+        const children = module.children || [];
+        for (let index = 0; index < children.length; ++index) {
+            const child = children[index];
+            if (child && child.pointerPressed !== undefined && child.primaryClicked !== undefined)
+                return child;
+        }
+        return null;
+    }
+
+    function simulateSwipe() {
+        resetState();
+        const capsule = capsuleItem();
+        if (!capsule)
+            return false;
+        capsule.pointerPressed(10, 12, Qt.LeftButton, Qt.LeftButton);
+        capsule.pointerMoved(72, 12, Qt.LeftButton);
+        capsule.pointerReleased(72, 12, Qt.LeftButton, 0);
+        capsule.primaryClicked();
+        return true;
+    }
+
+    function simulateTap() {
+        resetState();
+        const capsule = capsuleItem();
+        if (!capsule)
+            return false;
+        capsule.pointerPressed(10, 12, Qt.LeftButton, Qt.LeftButton);
+        capsule.pointerReleased(12, 12, Qt.LeftButton, 0);
+        capsule.primaryClicked();
+        return true;
+    }
+
+    Component {
+        id: swipeCompact
+
+        Item {
+            property real startX: 0
+            property bool suppressClick: false
+            property var handlers: ({
+                "pointerPressed": function(x) {
+                    startX = x;
+                    suppressClick = false;
+                    root.record("press");
+                },
+                "pointerMoved": function(x) {
+                    if (Math.abs(x - startX) > 24)
+                        suppressClick = true;
+                    root.record("move");
+                },
+                "pointerReleased": function() {
+                    root.record(suppressClick ? "release-swipe" : "release-tap");
+                },
+                "primaryClicked": function() {
+                    root.record(suppressClick ? "suppress-click" : "allow-click");
+                    const handled = suppressClick;
+                    suppressClick = false;
+                    return handled;
+                }
+            })
+
+            Text {
+                anchors.centerIn: parent
+                text: "swipe"
+            }
+        }
+    }
+
+    Item {
+        id: host
+
+        property var shellWindow: root
+
+        function compactFor(moduleId) {
+            return parent && parent.compactComponentFor ? parent.compactComponentFor(moduleId) : null;
+        }
+
+        function expandedComponentFor(moduleId) {
+            return parent && parent.expandedComponentFor ? parent.expandedComponentFor(moduleId) : null;
+        }
+
+        function activateModule(moduleId, item) {
+            root.activated = true;
+        }
+    }
+
+    IslandModule {
+        id: module
+
+        moduleId: "swipe"
+        host: host
+        compactLevel: 0
+    }
+}
+)QML";
+
+        std::unique_ptr<QObject> object(createFromData(qml));
+        if (!object)
+            return false;
+
+        if (!QMetaObject::invokeMethod(object.get(), "simulateSwipe"))
+            return false;
+
+        QVariant swipeLog;
+        QVariant swipeActivated;
+        if (!QMetaObject::invokeMethod(object.get(), "eventLogText", Q_RETURN_ARG(QVariant, swipeLog)))
+            return false;
+        swipeActivated = object->property("activated");
+        if (swipeLog.toString() != QStringLiteral("press,move,release-swipe,suppress-click")
+            || swipeActivated.toBool()) {
+            qWarning() << "Expected swipe to suppress click and avoid activation, got"
+                       << swipeLog.toString() << swipeActivated.toBool();
+            return false;
+        }
+
+        if (!QMetaObject::invokeMethod(object.get(), "simulateTap"))
+            return false;
+
+        QVariant tapLog;
+        QVariant tapActivated;
+        if (!QMetaObject::invokeMethod(object.get(), "eventLogText", Q_RETURN_ARG(QVariant, tapLog)))
+            return false;
+        tapActivated = object->property("activated");
+        if (tapLog.toString() != QStringLiteral("press,release-tap,allow-click")
+            || !tapActivated.toBool()) {
+            qWarning() << "Expected tap to allow activation, got"
+                       << tapLog.toString() << tapActivated.toBool();
+            return false;
+        }
+        return true;
+    }
 };
 
 } // namespace
@@ -628,6 +813,8 @@ int main(int argc, char **argv)
     if (!tests.dynamicLayoutHonorsSoftConfiguredWidthsAndRuntimePreferredWidths())
         return 1;
     if (!tests.dynamicLayoutHonorsVisibilityRequestsAndPriorityHiding())
+        return 1;
+    if (!tests.islandModuleForwardsPointerHandlersToCompactView())
         return 1;
     return 0;
 }

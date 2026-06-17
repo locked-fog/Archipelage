@@ -20,6 +20,10 @@ Item {
     property int transitionDirection: 1
     property int pendingTransitionDirection: 0
     property real swipeOffset: 0
+    property real swipeStartX: 0
+    property real swipeStartY: 0
+    property bool swipeArmed: false
+    property bool swipeMoved: false
     property bool suppressNextClick: false
     readonly property int layoutPaddingLeft: compactLevel >= 2 ? 12 : 14
     readonly property int layoutPaddingRight: compactLevel >= 2 ? 10 : 12
@@ -65,6 +69,72 @@ Item {
                 return ;
 
             MediaService.setVolume(MediaService.volume + (delta > 0 ? 0.04 : -0.04));
+        },
+        "pointerPressed": function(x, y, button) {
+            suppressClickReset.stop();
+            root.suppressNextClick = false;
+            root.swipeOffset = 0;
+            root.swipeMoved = false;
+            root.swipeArmed = button === Qt.LeftButton;
+            if (!root.swipeArmed)
+                return;
+
+            root.swipeStartX = x;
+            root.swipeStartY = y;
+        },
+        "pointerMoved": function(x, y, buttons) {
+            if (!root.swipeArmed || !(buttons & Qt.LeftButton))
+                return;
+
+            const deltaX = x - root.swipeStartX;
+            const deltaY = Math.abs(y - root.swipeStartY);
+            if (deltaY > 24) {
+                root.swipeMoved = true;
+                root.swipeOffset = 0;
+                return;
+            }
+
+            if (Math.abs(deltaX) <= 8 && !root.swipeMoved)
+                return;
+
+            root.swipeMoved = root.swipeMoved || Math.abs(deltaX) > 10 || deltaY > 6;
+            root.swipeOffset = root.clampSwipeOffset(deltaX);
+        },
+        "pointerReleased": function(x, y, button) {
+            if (button !== Qt.LeftButton || !root.swipeArmed) {
+                root.swipeArmed = false;
+                root.swipeOffset = 0;
+                return;
+            }
+
+            const deltaX = x - root.swipeStartX;
+            const deltaY = Math.abs(y - root.swipeStartY);
+            const horizontalDrag = root.swipeMoved || (Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) + 4);
+            const swipeThreshold = compactLevel >= 2 ? 38 : 48;
+            root.suppressNextClick = horizontalDrag;
+            if (root.suppressNextClick)
+                suppressClickReset.restart();
+
+            if (horizontalDrag && Math.abs(deltaX) >= swipeThreshold) {
+                if (deltaX < 0 && MediaService.canGoPrevious) {
+                    root.pendingTransitionDirection = -1;
+                    MediaService.previous();
+                } else if (deltaX > 0 && MediaService.canGoNext) {
+                    root.pendingTransitionDirection = 1;
+                    MediaService.next();
+                }
+            }
+
+            root.swipeArmed = false;
+            root.swipeMoved = false;
+            root.swipeOffset = 0;
+        },
+        "pointerCanceled": function() {
+            suppressClickReset.stop();
+            root.swipeArmed = false;
+            root.swipeMoved = false;
+            root.suppressNextClick = false;
+            root.swipeOffset = 0;
         }
     })
 
@@ -151,7 +221,7 @@ Item {
     }
 
     Behavior on swipeOffset {
-        enabled: !swipeHandler.active && !transitionActive
+        enabled: !swipeArmed && !transitionActive
 
         NumberAnimation {
             duration: 170
@@ -192,55 +262,6 @@ Item {
                 ? root.transitionDirection * (root.transitionProgress - 1) * (compactLevel >= 2 ? 48 : 64)
                 : root.swipeOffset
             opacity: root.transitionActive ? Math.min(1, 0.2 + root.transitionProgress * 0.8) : 1
-        }
-    }
-
-    DragHandler {
-        id: swipeHandler
-
-        target: null
-        acceptedButtons: Qt.LeftButton
-        dragThreshold: 12
-        grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.ApprovesTakeOverByAnything
-        xAxis.enabled: true
-        yAxis.enabled: false
-        enabled: MediaService.available
-
-        xAxis.onActiveValueChanged: function() {
-            root.swipeOffset = root.clampSwipeOffset(swipeHandler.activeTranslation.x);
-        }
-
-        onCanceled: {
-            suppressClickReset.stop();
-            root.suppressNextClick = false;
-            root.swipeOffset = 0;
-        }
-
-        onActiveChanged: {
-            if (active) {
-                suppressClickReset.stop();
-                root.suppressNextClick = false;
-                return;
-            }
-
-            const deltaX = swipeHandler.activeTranslation.x;
-            const horizontalDrag = Math.abs(deltaX) > 10;
-            const swipeThreshold = compactLevel >= 2 ? 38 : 48;
-            root.suppressNextClick = horizontalDrag;
-            if (root.suppressNextClick)
-                suppressClickReset.restart();
-
-            if (Math.abs(deltaX) >= swipeThreshold) {
-                if (deltaX < 0 && MediaService.canGoPrevious) {
-                    root.pendingTransitionDirection = -1;
-                    MediaService.previous();
-                } else if (deltaX > 0 && MediaService.canGoNext) {
-                    root.pendingTransitionDirection = 1;
-                    MediaService.next();
-                }
-            }
-
-            root.swipeOffset = 0;
         }
     }
 

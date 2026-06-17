@@ -45,6 +45,14 @@ Item {
         return MediaService.loopStatus === "Track" || MediaService.loopStatus === "Playlist";
     }
 
+    function loopMode() {
+        if (MediaService.loopStatus === "Track")
+            return "track";
+        if (MediaService.loopStatus === "Playlist")
+            return "playlist";
+        return "off";
+    }
+
     function trackState() {
         return {
             "key": MediaService.available
@@ -251,12 +259,6 @@ Item {
             }
 
             ControlButton {
-                icon: "stop"
-                enabled: MediaService.canControl
-                onClicked: MediaService.stop()
-            }
-
-            ControlButton {
                 icon: "next"
                 enabled: MediaService.canGoNext
                 onClicked: MediaService.next()
@@ -265,6 +267,8 @@ Item {
             ControlButton {
                 icon: root.loopIcon()
                 active: root.loopActive()
+                mode: root.loopMode()
+                accentColor: mode === "track" ? StyleTokens.success : StyleTokens.accent
                 enabled: MediaService.canControl
                 onClicked: MediaService.toggleLoopStatus()
             }
@@ -458,14 +462,20 @@ Item {
         property string icon: "play"
         property bool emphasized: false
         property bool active: false
+        property string mode: "default"
+        property color accentColor: StyleTokens.accent
 
         signal clicked()
 
         width: emphasized ? 48 : 36
         height: emphasized ? 48 : 36
         radius: width / 2
-        color: !enabled ? StyleTokens.track : (emphasized || active ? StyleTokens.accent : StyleTokens.module)
+        color: !enabled ? StyleTokens.track
+            : (emphasized ? accentColor : (active ? accentColor : StyleTokens.module))
         opacity: enabled ? 1 : 0.45
+        border.width: mode === "track" ? 2 : (mode === "playlist" ? 1 : 0)
+        border.color: mode === "track" ? StyleTokens.textPrimary
+            : (mode === "playlist" ? accentColor : StyleTokens.transparent)
 
         MediaIcon {
             anchors.centerIn: parent

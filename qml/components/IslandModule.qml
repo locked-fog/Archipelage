@@ -19,6 +19,10 @@ import ArchipelagoCore
 //       handlers.primaryClicked()                  -> bool
 //       handlers.secondaryClicked(action: string)   -> bool
 //       handlers.wheelMoved(delta: int)             -> void
+//       handlers.pointerPressed(x, y, button, buttons)  -> void
+//       handlers.pointerMoved(x, y, buttons)            -> void
+//       handlers.pointerReleased(x, y, button, buttons) -> void
+//       handlers.pointerCanceled()                      -> void
 //
 // Returning false from a handler tells the framework to apply its
 // default behaviour (typically host.activateModule → open expanded).
@@ -194,6 +198,22 @@ Item {
 
         onWheelMoved: function(angleDelta) {
             root.invokeHandler("wheelMoved", angleDelta);
+        }
+
+        onPointerPressed: function(x, y, button, buttons) {
+            root.invokeHandler("pointerPressed", x, y, button, buttons);
+        }
+
+        onPointerMoved: function(x, y, buttons) {
+            root.invokeHandler("pointerMoved", x, y, buttons);
+        }
+
+        onPointerReleased: function(x, y, button, buttons) {
+            root.invokeHandler("pointerReleased", x, y, button, buttons);
+        }
+
+        onPointerCanceled: {
+            root.invokeHandler("pointerCanceled");
         }
 
         Loader {
