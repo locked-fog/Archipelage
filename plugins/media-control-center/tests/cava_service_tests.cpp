@@ -27,7 +27,7 @@ private slots:
     void parsesAsciiFramesIntoNormalizedLevels()
     {
         QVector<qreal> levels;
-        QVERIFY(Cava::parseAsciiFrame("0;250;1000;125\n", 4, 1000, &levels));
+        QVERIFY(Cava::parseAsciiFrame("0;250;1000;125;\n", 4, 1000, &levels));
         QCOMPARE(levels.size(), 4);
         QCOMPARE(levels.at(0), 0.0);
         QCOMPARE(levels.at(1), 0.25);

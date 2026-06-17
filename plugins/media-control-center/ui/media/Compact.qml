@@ -26,10 +26,10 @@ Item {
     readonly property int layoutSpacing: compactLevel >= 2 ? 8 : 10
     readonly property string clientId: "compact:" + moduleId
     readonly property int coverSize: compactLevel >= 2 ? 24 : 28
-    readonly property int barWidth: compactLevel >= 2 ? 24 : 28
+    readonly property int barWidth: compactLevel >= 2 ? 18 : 22
     readonly property int compactLayoutPriority: 70
     readonly property bool compactVisibleRequested: MediaService.available
-    readonly property int minimumCompactWidth: compactLevel >= 2 ? 182 : 212
+    readonly property int minimumCompactWidth: compactLevel >= 2 ? 176 : 204
     readonly property int maximumCompactWidth: compactLevel >= 2 ? 318 : 356
     readonly property int preferredCompactWidth: {
         if (!compactVisibleRequested)
@@ -44,13 +44,27 @@ Item {
     }
     property var handlers: ({
         "primaryClicked": function() {
-            return true;
+            if (root.suppressNextClick) {
+                suppressClickReset.stop();
+                root.suppressNextClick = false;
+                return true;
+            }
+            return false;
         },
         "secondaryClicked": function() {
+            if (root.suppressNextClick) {
+                suppressClickReset.stop();
+                root.suppressNextClick = false;
+                return true;
+            }
+            MediaService.playPause();
             return true;
         },
-        "wheelMoved": function() {
-            return ;
+        "wheelMoved": function(delta) {
+            if (!MediaService.available)
+                return ;
+
+            MediaService.setVolume(MediaService.volume + (delta > 0 ? 0.04 : -0.04));
         }
     })
 
@@ -86,13 +100,6 @@ Item {
         transitionActive = true;
         transitionProgress = 0;
         compactTransition.restart();
-    }
-
-    function pointerInside(item) {
-        if (!gestureArea.containsMouse || !item)
-            return false;
-        const point = item.mapFromItem(gestureArea, gestureArea.mouseX, gestureArea.mouseY);
-        return point.x >= 0 && point.x <= item.width && point.y >= 0 && point.y <= item.height;
     }
 
     function clampSwipeOffset(rawValue) {
@@ -144,7 +151,7 @@ Item {
     }
 
     Behavior on swipeOffset {
-        enabled: !gestureArea.pressed && !transitionActive
+        enabled: !swipeHandler.active && !transitionActive
 
         NumberAnimation {
             duration: 170
@@ -188,54 +195,42 @@ Item {
         }
     }
 
-    MouseArea {
-        id: gestureArea
+    DragHandler {
+        id: swipeHandler
 
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        target: null
+        acceptedButtons: Qt.LeftButton
+        dragThreshold: 12
+        grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.ApprovesTakeOverByAnything
+        xAxis.enabled: true
+        yAxis.enabled: false
         enabled: MediaService.available
-        hoverEnabled: true
-        preventStealing: true
 
-        property real pressX: 0
-        property real pressY: 0
+        xAxis.onActiveValueChanged: function() {
+            root.swipeOffset = root.clampSwipeOffset(swipeHandler.activeTranslation.x);
+        }
 
-        onPressed: function(mouse) {
+        onCanceled: {
             suppressClickReset.stop();
-            pressX = mouse.x;
-            pressY = mouse.y;
             root.suppressNextClick = false;
+            root.swipeOffset = 0;
         }
 
-        onPositionChanged: function(mouse) {
-            if (!(mouse.buttons & Qt.LeftButton))
-                return;
-
-            const deltaX = mouse.x - pressX;
-            const deltaY = mouse.y - pressY;
-            if (Math.abs(deltaY) > 24)
-                return;
-            if (Math.abs(deltaX) <= Math.abs(deltaY) + 4 && Math.abs(root.swipeOffset) < 0.5)
-                return;
-
-            root.swipeOffset = root.clampSwipeOffset(deltaX);
-        }
-
-        onReleased: function(mouse) {
-            if (mouse.button !== Qt.LeftButton) {
-                root.swipeOffset = 0;
+        onActiveChanged: {
+            if (active) {
+                suppressClickReset.stop();
+                root.suppressNextClick = false;
                 return;
             }
 
-            const deltaX = mouse.x - pressX;
-            const deltaY = mouse.y - pressY;
-            const horizontalDrag = Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) + 4;
+            const deltaX = swipeHandler.activeTranslation.x;
+            const horizontalDrag = Math.abs(deltaX) > 10;
             const swipeThreshold = compactLevel >= 2 ? 38 : 48;
             root.suppressNextClick = horizontalDrag;
             if (root.suppressNextClick)
                 suppressClickReset.restart();
 
-            if (horizontalDrag && Math.abs(deltaX) >= swipeThreshold) {
+            if (Math.abs(deltaX) >= swipeThreshold) {
                 if (deltaX < 0 && MediaService.canGoPrevious) {
                     root.pendingTransitionDirection = -1;
                     MediaService.previous();
@@ -246,36 +241,6 @@ Item {
             }
 
             root.swipeOffset = 0;
-        }
-
-        onClicked: function(mouse) {
-            if (root.suppressNextClick) {
-                suppressClickReset.stop();
-                root.suppressNextClick = false;
-                return;
-            }
-
-            if (mouse.button === Qt.RightButton) {
-                MediaService.playPause();
-                return;
-            }
-
-            if (shellWindow)
-                shellWindow.toggleModule(root.moduleId);
-        }
-
-        onCanceled: {
-            suppressClickReset.stop();
-            root.suppressNextClick = false;
-            root.swipeOffset = 0;
-        }
-
-        onWheel: function(wheel) {
-            if (!MediaService.available)
-                return;
-
-            MediaService.setVolume(MediaService.volume + (wheel.angleDelta.y > 0 ? 0.04 : -0.04));
-            wheel.accepted = true;
         }
     }
 
@@ -332,7 +297,7 @@ Item {
             Item {
                 id: titleBox
 
-                property bool hovered: trackLayer.interactionEnabled && root.pointerInside(titleBox)
+                property bool hovered: trackLayer.interactionEnabled && titleHover.hovered
                 property bool shouldScroll: titleText.implicitWidth > width + 4
                 property real marqueeOffset: 0
                 readonly property real scrollDistance: Math.max(0, titleText.implicitWidth - width + 18)
@@ -422,6 +387,12 @@ Item {
                         script: titleBox.marqueeOffset = 0
                     }
                 }
+
+                HoverHandler {
+                    id: titleHover
+
+                    acceptedDevices: PointerDevice.Mouse
+                }
             }
         }
     }
@@ -431,7 +402,7 @@ Item {
 
         property bool active: false
         property var levels: []
-        readonly property int barCount: levels && levels.length > 0 ? levels.length : 8
+        readonly property int barCount: levels && levels.length > 0 ? levels.length : 6
 
         Row {
             anchors.centerIn: parent

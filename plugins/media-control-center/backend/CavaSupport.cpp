@@ -44,7 +44,9 @@ bool parseAsciiFrame(const QByteArray &frame, int expectedBars, int asciiMaxRang
     if (!levelsOut || expectedBars <= 0 || asciiMaxRange <= 0)
         return false;
 
-    const QList<QByteArray> parts = frame.trimmed().split(';');
+    QList<QByteArray> parts = frame.trimmed().split(';');
+    if (!parts.isEmpty() && parts.constLast().trimmed().isEmpty())
+        parts.removeLast();
     if (parts.size() != expectedBars)
         return false;
 

@@ -10,7 +10,7 @@
 
 namespace {
 
-constexpr int kBarCount = 8;
+constexpr int kBarCount = 6;
 constexpr int kAsciiMaxRange = 1000;
 constexpr int kRestartDelayMs = 1800;
 constexpr qreal kLevelChangeThreshold = 0.03;

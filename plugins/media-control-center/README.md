@@ -30,6 +30,6 @@ Then build and publish:
 ```bash
 cd plugins/media-control-center
 makepkg -f --cleanbuild
-install -Dm644 archipelago-plugin-media-control-center-0.3.0-1-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
-repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-plugin-media-control-center-0.3.0-1-x86_64.pkg.tar.zst
+install -Dm644 archipelago-plugin-media-control-center-0.3.0-2-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
+repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-plugin-media-control-center-0.3.0-2-x86_64.pkg.tar.zst
 ```
