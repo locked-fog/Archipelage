@@ -19,11 +19,9 @@ Item {
     property real transitionProgress: 1
     property int transitionDirection: 1
     property int pendingTransitionDirection: 0
-    property real swipeOffset: 0
-    property real swipeStartX: 0
-    property real swipeStartY: 0
-    property bool swipeArmed: false
-    property bool swipeMoved: false
+    property string pressedButton: ""
+    property bool buttonPressArmed: false
+    property bool buttonPressInside: false
     property bool suppressNextClick: false
     readonly property int layoutPaddingLeft: compactLevel >= 2 ? 12 : 14
     readonly property int layoutPaddingRight: compactLevel >= 2 ? 10 : 12
@@ -31,18 +29,28 @@ Item {
     readonly property string clientId: "compact:" + moduleId
     readonly property int coverSize: compactLevel >= 2 ? 24 : 28
     readonly property int barWidth: compactLevel >= 2 ? 18 : 22
+    readonly property int controlSize: compactLevel >= 2 ? 20 : 22
+    readonly property int controlSpacing: compactLevel >= 2 ? 4 : 5
+    readonly property int controlsWidth: controlSize * 3 + controlSpacing * 2
+    readonly property real slideDistance: Math.max(compactLevel >= 2 ? 124 : 152,
+                                                   trackViewport.width + root.layoutSpacing * 2)
     readonly property int compactLayoutPriority: 70
     readonly property bool compactVisibleRequested: MediaService.available
-    readonly property int minimumCompactWidth: compactLevel >= 2 ? 176 : 204
-    readonly property int maximumCompactWidth: compactLevel >= 2 ? 318 : 356
+    readonly property bool contentVisible: currentTrackState.available || previousTrackState.available || transitionActive
+    readonly property int minimumCompactWidth: compactLevel >= 2 ? 188 : 216
+    readonly property int maximumCompactWidth: compactLevel >= 2 ? 320 : 360
     readonly property int preferredCompactWidth: {
         if (!compactVisibleRequested)
             return minimumCompactWidth;
         const measuredTitleWidth = Math.ceil(titleMeasure.contentWidth);
-        const preferredTitleWidth = Math.max(compactLevel >= 2 ? 82 : 104,
-                                             Math.min(compactLevel >= 2 ? 154 : 208,
+        const preferredTitleWidth = Math.max(compactLevel >= 2 ? 78 : 104,
+                                             Math.min(compactLevel >= 2 ? 148 : 210,
                                                       measuredTitleWidth + 22));
-        const chromeWidth = layoutPaddingLeft + layoutPaddingRight + barWidth + coverSize + layoutSpacing * 3;
+        const chromeWidth = layoutPaddingLeft + layoutPaddingRight
+            + barWidth
+            + coverSize
+            + controlsWidth
+            + layoutSpacing * 4;
         return Math.max(minimumCompactWidth,
                         Math.min(maximumCompactWidth, chromeWidth + preferredTitleWidth));
     }
@@ -56,12 +64,6 @@ Item {
             return false;
         },
         "secondaryClicked": function() {
-            if (root.suppressNextClick) {
-                suppressClickReset.stop();
-                root.suppressNextClick = false;
-                return true;
-            }
-            MediaService.playPause();
             return true;
         },
         "wheelMoved": function(delta) {
@@ -73,68 +75,53 @@ Item {
         "pointerPressed": function(x, y, button) {
             suppressClickReset.stop();
             root.suppressNextClick = false;
-            root.swipeOffset = 0;
-            root.swipeMoved = false;
-            root.swipeArmed = button === Qt.LeftButton;
-            if (!root.swipeArmed)
+            root.pressedButton = "";
+            root.buttonPressArmed = false;
+            root.buttonPressInside = false;
+
+            if (button !== Qt.LeftButton)
                 return;
 
-            root.swipeStartX = x;
-            root.swipeStartY = y;
+            const hit = root.buttonAt(x, y);
+            if (hit === "")
+                return;
+
+            root.pressedButton = hit;
+            root.buttonPressArmed = true;
+            root.buttonPressInside = true;
         },
         "pointerMoved": function(x, y, buttons) {
-            if (!root.swipeArmed || !(buttons & Qt.LeftButton))
+            if (!root.buttonPressArmed || !(buttons & Qt.LeftButton))
                 return;
 
-            const deltaX = x - root.swipeStartX;
-            const deltaY = Math.abs(y - root.swipeStartY);
-            if (deltaY > 24) {
-                root.swipeMoved = true;
-                root.swipeOffset = 0;
-                return;
-            }
-
-            if (Math.abs(deltaX) <= 8 && !root.swipeMoved)
-                return;
-
-            root.swipeMoved = root.swipeMoved || Math.abs(deltaX) > 10 || deltaY > 6;
-            root.swipeOffset = root.clampSwipeOffset(deltaX);
+            root.buttonPressInside = root.buttonAt(x, y) === root.pressedButton;
         },
         "pointerReleased": function(x, y, button) {
-            if (button !== Qt.LeftButton || !root.swipeArmed) {
-                root.swipeArmed = false;
-                root.swipeOffset = 0;
+            if (button !== Qt.LeftButton || !root.buttonPressArmed) {
+                root.pressedButton = "";
+                root.buttonPressArmed = false;
+                root.buttonPressInside = false;
                 return;
             }
 
-            const deltaX = x - root.swipeStartX;
-            const deltaY = Math.abs(y - root.swipeStartY);
-            const horizontalDrag = root.swipeMoved || (Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) + 4);
-            const swipeThreshold = compactLevel >= 2 ? 38 : 48;
-            root.suppressNextClick = horizontalDrag;
-            if (root.suppressNextClick)
-                suppressClickReset.restart();
+            const hit = root.buttonAt(x, y);
+            const activate = root.buttonPressInside && hit === root.pressedButton;
+            root.suppressNextClick = true;
+            suppressClickReset.restart();
 
-            if (horizontalDrag && Math.abs(deltaX) >= swipeThreshold) {
-                if (deltaX < 0 && MediaService.canGoPrevious) {
-                    root.pendingTransitionDirection = -1;
-                    MediaService.previous();
-                } else if (deltaX > 0 && MediaService.canGoNext) {
-                    root.pendingTransitionDirection = 1;
-                    MediaService.next();
-                }
-            }
+            if (activate)
+                root.triggerButton(root.pressedButton);
 
-            root.swipeArmed = false;
-            root.swipeMoved = false;
-            root.swipeOffset = 0;
+            root.pressedButton = "";
+            root.buttonPressArmed = false;
+            root.buttonPressInside = false;
         },
         "pointerCanceled": function() {
-            suppressClickReset.stop();
-            root.swipeArmed = false;
-            root.swipeMoved = false;
+            root.pressedButton = "";
+            root.buttonPressArmed = false;
+            root.buttonPressInside = false;
             root.suppressNextClick = false;
-            root.swipeOffset = 0;
+            suppressClickReset.stop();
         }
     })
 
@@ -159,6 +146,18 @@ Item {
             previousTrackState = nextState;
             return;
         }
+        if (!nextState.available) {
+            transitionActive = false;
+            previousTrackState = currentTrackState;
+            pendingTransitionDirection = 0;
+            transitionProgress = 1;
+            return;
+        }
+        if (!currentTrackState.available) {
+            currentTrackState = nextState;
+            previousTrackState = nextState;
+            return;
+        }
         if (currentTrackState.key === nextState.key) {
             currentTrackState = nextState;
             return;
@@ -172,9 +171,49 @@ Item {
         compactTransition.restart();
     }
 
-    function clampSwipeOffset(rawValue) {
-        const limit = compactLevel >= 2 ? 54 : 68;
-        return Math.max(-limit, Math.min(limit, rawValue));
+    function buttonEnabled(buttonId) {
+        if (buttonId === "previous")
+            return MediaService.canGoPrevious;
+        if (buttonId === "play")
+            return MediaService.canControl && (MediaService.canPlay || MediaService.canPause);
+        if (buttonId === "next")
+            return MediaService.canGoNext;
+        return false;
+    }
+
+    function buttonAt(x, y) {
+        if (!contentVisible)
+            return "";
+
+        const top = Math.round((height - controlSize) / 2);
+        const left = width - layoutPaddingRight - controlsWidth;
+        if (y < top || y > top + controlSize)
+            return "";
+
+        const slot = controlSize + controlSpacing;
+        if (x >= left && x <= left + controlSize)
+            return buttonEnabled("previous") ? "previous" : "";
+        if (x >= left + slot && x <= left + slot + controlSize)
+            return buttonEnabled("play") ? "play" : "";
+        if (x >= left + slot * 2 && x <= left + slot * 2 + controlSize)
+            return buttonEnabled("next") ? "next" : "";
+        return "";
+    }
+
+    function triggerButton(buttonId) {
+        if (buttonId === "previous") {
+            pendingTransitionDirection = -1;
+            MediaService.previous();
+            return;
+        }
+        if (buttonId === "play") {
+            MediaService.playPause();
+            return;
+        }
+        if (buttonId === "next") {
+            pendingTransitionDirection = 1;
+            MediaService.next();
+        }
     }
 
     Component.onCompleted: {
@@ -203,7 +242,7 @@ Item {
         property: "transitionProgress"
         from: 0
         to: 1
-        duration: 280
+        duration: 320
         easing.type: Easing.OutCubic
         onStopped: {
             root.transitionActive = false;
@@ -220,15 +259,6 @@ Item {
         onTriggered: root.suppressNextClick = false
     }
 
-    Behavior on swipeOffset {
-        enabled: !swipeArmed && !transitionActive
-
-        NumberAnimation {
-            duration: 170
-            easing.type: Easing.OutCubic
-        }
-    }
-
     Text {
         id: titleMeasure
 
@@ -240,28 +270,64 @@ Item {
     }
 
     Item {
-        id: viewport
+        id: trackViewport
 
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: controlsRow.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: root.layoutPaddingLeft
+        anchors.rightMargin: root.layoutSpacing
         clip: true
-        visible: MediaService.available
+        visible: root.contentVisible
 
         CompactTrackLayer {
             anchors.fill: parent
             trackData: root.previousTrackState
             interactionEnabled: false
-            x: root.transitionActive ? root.transitionDirection * root.transitionProgress * (compactLevel >= 2 ? 48 : 64) : 0
-            opacity: root.transitionActive ? (1 - root.transitionProgress) : 0
+            visible: root.transitionActive
+            x: -root.transitionDirection * root.transitionProgress * root.slideDistance
+            opacity: 1
         }
 
         CompactTrackLayer {
             anchors.fill: parent
             trackData: root.currentTrackState
             interactionEnabled: !root.transitionActive
-            x: root.transitionActive
-                ? root.transitionDirection * (root.transitionProgress - 1) * (compactLevel >= 2 ? 48 : 64)
-                : root.swipeOffset
-            opacity: root.transitionActive ? Math.min(1, 0.2 + root.transitionProgress * 0.8) : 1
+            x: root.transitionActive ? root.transitionDirection * (1 - root.transitionProgress) * root.slideDistance : 0
+            opacity: 1
+        }
+    }
+
+    Row {
+        id: controlsRow
+
+        anchors.right: parent.right
+        anchors.rightMargin: root.layoutPaddingRight
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: root.controlSpacing
+        visible: root.contentVisible
+
+        CompactActionButton {
+            icon: "previous"
+            size: root.controlSize
+            enabled: root.buttonEnabled("previous")
+            pressed: root.buttonPressArmed && root.pressedButton === "previous" && root.buttonPressInside
+        }
+
+        CompactActionButton {
+            icon: MediaService.playing ? "pause" : "play"
+            size: root.controlSize
+            emphasized: true
+            enabled: root.buttonEnabled("play")
+            pressed: root.buttonPressArmed && root.pressedButton === "play" && root.buttonPressInside
+        }
+
+        CompactActionButton {
+            icon: "next"
+            size: root.controlSize
+            enabled: root.buttonEnabled("next")
+            pressed: root.buttonPressArmed && root.pressedButton === "next" && root.buttonPressInside
         }
     }
 
@@ -278,8 +344,6 @@ Item {
 
         Row {
             anchors.fill: parent
-            anchors.leftMargin: root.layoutPaddingLeft
-            anchors.rightMargin: root.layoutPaddingRight
             spacing: root.layoutSpacing
 
             AudioBars {
@@ -323,7 +387,7 @@ Item {
                 property real marqueeOffset: 0
                 readonly property real scrollDistance: Math.max(0, titleText.implicitWidth - width + 18)
 
-                width: Math.max(72, parent.width - root.barWidth - root.coverSize - parent.spacing * 2)
+                width: Math.max(56, parent.width - root.barWidth - root.coverSize - parent.spacing * 2)
                 height: parent.height
                 clip: true
 
@@ -415,6 +479,32 @@ Item {
                     acceptedDevices: PointerDevice.Mouse
                 }
             }
+        }
+    }
+
+    component CompactActionButton: Rectangle {
+        id: button
+
+        property string icon: "play"
+        property int size: 22
+        property bool emphasized: false
+        property bool pressed: false
+
+        width: size
+        height: size
+        radius: size / 2
+        color: !enabled ? StyleTokens.transparent
+            : (pressed ? StyleTokens.accent : (emphasized ? Qt.rgba(1, 1, 1, 0.08) : StyleTokens.transparent))
+        border.width: enabled ? 1 : 0
+        border.color: pressed ? StyleTokens.accent : Qt.rgba(1, 1, 1, emphasized ? 0.18 : 0.1)
+        opacity: enabled ? 1 : 0.36
+
+        MediaIcon {
+            anchors.centerIn: parent
+            width: Math.round(button.size * 0.58)
+            height: Math.round(button.size * 0.58)
+            icon: button.icon
+            color: button.pressed ? StyleTokens.textPrimary : StyleTokens.textSecondary
         }
     }
 

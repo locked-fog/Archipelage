@@ -790,6 +790,138 @@ Item {
         }
         return true;
     }
+
+    bool islandModuleMapsPointerCoordinatesIntoCompactSpace()
+    {
+        const QByteArray qml = R"QML(
+import QtQuick
+import ArchipelagoCore
+import "file:///)QML" ARCHIPELAGO_SOURCE_DIR R"QML(/qml/components"
+
+Item {
+    id: root
+
+    width: 220
+    height: 64
+    property var moduleRegistry: ({
+        "coords": {
+            "compact": coordsCompact,
+            "expanded": null,
+            "anchors": ["left"],
+            "defaultPriority": 80,
+            "compactLayout": {
+                "preferredWidth": 120,
+                "minimumWidth": 80,
+                "maximumWidth": 140
+            }
+        }
+    })
+    property var eventLog: []
+
+    function moduleEntry(moduleId) {
+        return moduleRegistry && moduleId ? (moduleRegistry[moduleId] || {}) : {};
+    }
+
+    function compactComponentFor(moduleId) {
+        return moduleEntry(moduleId).compact || null;
+    }
+
+    function expandedComponentFor(moduleId) {
+        return moduleEntry(moduleId).expanded || null;
+    }
+
+    function record(eventName) {
+        eventLog = eventLog.concat([eventName]);
+    }
+
+    function eventLogText() {
+        return eventLog.join(",");
+    }
+
+    function resetState() {
+        eventLog = [];
+    }
+
+    function capsuleItem() {
+        const children = module.children || [];
+        for (let index = 0; index < children.length; ++index) {
+            const child = children[index];
+            if (child && child.pointerPressed !== undefined && child.primaryClicked !== undefined)
+                return child;
+        }
+        return null;
+    }
+
+    function simulatePointerSequence() {
+        resetState();
+        const capsule = capsuleItem();
+        if (!capsule)
+            return false;
+        capsule.pointerPressed(18, 12, Qt.LeftButton, Qt.LeftButton);
+        capsule.pointerMoved(26, 14, Qt.LeftButton);
+        capsule.pointerReleased(30, 16, Qt.LeftButton, 0);
+        return true;
+    }
+
+    Component {
+        id: coordsCompact
+
+        Item {
+            property var handlers: ({
+                "pointerPressed": function(x, y) {
+                    root.record("press-" + Math.round(x) + "-" + Math.round(y));
+                },
+                "pointerMoved": function(x, y) {
+                    root.record("move-" + Math.round(x) + "-" + Math.round(y));
+                },
+                "pointerReleased": function(x, y) {
+                    root.record("release-" + Math.round(x) + "-" + Math.round(y));
+                }
+            })
+        }
+    }
+
+    Item {
+        id: host
+
+        property var shellWindow: root
+
+        function compactFor(moduleId) {
+            return parent && parent.compactComponentFor ? parent.compactComponentFor(moduleId) : null;
+        }
+
+        function expandedComponentFor(moduleId) {
+            return parent && parent.expandedComponentFor ? parent.expandedComponentFor(moduleId) : null;
+        }
+    }
+
+    IslandModule {
+        id: module
+
+        moduleId: "coords"
+        host: host
+        compactLevel: 0
+    }
+}
+)QML";
+
+        std::unique_ptr<QObject> object(createFromData(qml));
+        if (!object)
+            return false;
+
+        if (!QMetaObject::invokeMethod(object.get(), "simulatePointerSequence"))
+            return false;
+
+        QVariant eventLog;
+        if (!QMetaObject::invokeMethod(object.get(), "eventLogText", Q_RETURN_ARG(QVariant, eventLog)))
+            return false;
+        if (eventLog.toString() != QStringLiteral("press-6-10,move-14-12,release-18-14")) {
+            qWarning() << "Expected IslandModule to map pointer coordinates into compact space, got"
+                       << eventLog.toString();
+            return false;
+        }
+        return true;
+    }
 };
 
 } // namespace
@@ -815,6 +947,8 @@ int main(int argc, char **argv)
     if (!tests.dynamicLayoutHonorsVisibilityRequestsAndPriorityHiding())
         return 1;
     if (!tests.islandModuleForwardsPointerHandlersToCompactView())
+        return 1;
+    if (!tests.islandModuleMapsPointerCoordinatesIntoCompactSpace())
         return 1;
     return 0;
 }
