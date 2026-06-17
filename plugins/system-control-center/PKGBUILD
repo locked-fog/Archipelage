@@ -2,7 +2,7 @@
 
 pkgname=archipelago-plugin-system-control-center
 pkgver=0.1.0
-pkgrel=7
+pkgrel=8
 pkgdesc="System control center plugin for Archipelago"
 arch=('x86_64')
 url="https://github.com/Locked-Fog/Archipelago"

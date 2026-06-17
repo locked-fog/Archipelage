@@ -88,6 +88,10 @@ private slots:
 
         QVERIFY(object->property("controlRowCount").isValid());
         QCOMPARE(object->property("controlRowCount").toInt(), 4);
+
+        QObject *powerCard = object->findChild<QObject *>(QStringLiteral("powerModeCard"));
+        QVERIFY(powerCard != nullptr);
+        QVERIFY(powerCard->property("height").toReal() > 70.0);
     }
 
     void secondaryPreviewHidesOriginControl()
@@ -119,6 +123,9 @@ private slots:
         QVERIFY(object->setProperty("activeSecondaryPreview", QStringLiteral("audio-output")));
         QTRY_VERIFY(audioButton->property("opacity").toReal() < 0.1);
         QVERIFY(audioButton->property("visible").toBool());
+
+        QVERIFY(QMetaObject::invokeMethod(object.get(), "dismissActivePreview"));
+        QCOMPARE(object->property("activeSecondaryPreview").toString(), QString());
     }
 };
 

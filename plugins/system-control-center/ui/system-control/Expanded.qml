@@ -15,6 +15,14 @@ Item {
     readonly property real sideButtonWidth: width > 460 ? 134 : 120
     property string activeSecondaryPreview: ""
 
+    function dismissActivePreview() {
+        if (activeSecondaryPreview === "")
+            return
+        activeSecondaryPreview = ""
+        if (shellWindow && shellWindow.dismissAllPreviews)
+            shellWindow.dismissAllPreviews()
+    }
+
     function previewFrom(item, templateId) {
         if (!shellWindow)
             return
@@ -232,13 +240,17 @@ Item {
 
             Rectangle {
                 width: parent.width
-                implicitHeight: powerRow.implicitHeight + 28
+                objectName: "powerModeCard"
+                implicitHeight: Math.max(86, powerColumn.implicitHeight + 28)
+                height: implicitHeight
                 radius: 24
                 color: StyleTokens.module
                 border.width: 1
                 border.color: Qt.rgba(1, 1, 1, 0.08)
 
                 Column {
+                    id: powerColumn
+
                     anchors.fill: parent
                     anchors.margins: 14
                     spacing: 10
@@ -286,6 +298,15 @@ Item {
                 }
             }
         }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.activeSecondaryPreview !== ""
+        visible: enabled
+        z: 80
+        acceptedButtons: Qt.LeftButton
+        onClicked: root.dismissActivePreview()
     }
 
     component QuickSettingCard: Rectangle {
