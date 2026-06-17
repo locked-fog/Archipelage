@@ -7,275 +7,461 @@ Item {
 
     property int compactLevel: 0
     property string moduleId: "media"
-    readonly property int layoutPaddingLeft: 10
-    readonly property int layoutPaddingRight: 8
-    readonly property int layoutSpacing: 8
-    property var handlers: ({
-        "primaryClicked": function() {
-            return false;
-        },
-        "secondaryClicked": function() {
-            MediaService.playPause();
-            return true;
-        },
-        "wheelMoved": function(delta) {
-            if (!MediaService.available)
-                return ;
-
-            MediaService.setVolume(MediaService.volume + (delta > 0 ? 0.04 : -0.04));
-        }
+    property var shellWindow: null
+    property var currentTrackState: ({
+        "key": "__empty__",
+        "title": "",
+        "artUrl": "",
+        "available": false
     })
+    property var previousTrackState: currentTrackState
+    property bool transitionActive: false
+    property real transitionProgress: 1
+    property int transitionDirection: 1
+    property int pendingTransitionDirection: 0
+    property real swipeOffset: 0
+    property bool suppressNextClick: false
+    readonly property int layoutPaddingLeft: compactLevel >= 2 ? 12 : 14
+    readonly property int layoutPaddingRight: compactLevel >= 2 ? 10 : 12
+    readonly property int layoutSpacing: compactLevel >= 2 ? 8 : 10
     readonly property string clientId: "compact:" + moduleId
-    readonly property string titleText: MediaService.available ? (MediaService.title || MediaService.identity || "Media") : ""
     readonly property int coverSize: compactLevel >= 2 ? 24 : 28
-    readonly property int controlSize: compactLevel >= 2 ? 22 : 24
+    readonly property int barWidth: compactLevel >= 2 ? 24 : 28
     readonly property int compactLayoutPriority: 70
     readonly property bool compactVisibleRequested: MediaService.available
-    readonly property int minimumCompactWidth: compactLevel >= 2 ? 164 : 188
-    readonly property int maximumCompactWidth: compactLevel >= 2 ? 276 : 320
+    readonly property int minimumCompactWidth: compactLevel >= 2 ? 182 : 212
+    readonly property int maximumCompactWidth: compactLevel >= 2 ? 318 : 356
     readonly property int preferredCompactWidth: {
         if (!compactVisibleRequested)
             return minimumCompactWidth;
         const measuredTitleWidth = Math.ceil(titleMeasure.contentWidth);
-        const preferredTitleWidth = Math.max(compactLevel >= 2 ? 46 : 54,
-                                             Math.min(compactLevel >= 2 ? 96 : 132,
-                                                      measuredTitleWidth + 12));
-        const chromeWidth = layoutPaddingLeft + layoutPaddingRight
-            + (compactLevel >= 2 ? 16 : 20)
-            + coverSize
-            + controlSize * 3
-            + layoutSpacing * 5;
+        const preferredTitleWidth = Math.max(compactLevel >= 2 ? 82 : 104,
+                                             Math.min(compactLevel >= 2 ? 154 : 208,
+                                                      measuredTitleWidth + 22));
+        const chromeWidth = layoutPaddingLeft + layoutPaddingRight + barWidth + coverSize + layoutSpacing * 3;
         return Math.max(minimumCompactWidth,
                         Math.min(maximumCompactWidth, chromeWidth + preferredTitleWidth));
+    }
+    property var handlers: ({
+        "primaryClicked": function() {
+            return true;
+        },
+        "secondaryClicked": function() {
+            return true;
+        },
+        "wheelMoved": function() {
+            return ;
+        }
+    })
+
+    function compactTrackState() {
+        const title = MediaService.title || MediaService.identity || "Media";
+        const artist = MediaService.artist || "";
+        const displayTitle = MediaService.available && artist !== "" && artist !== title ? title + " - " + artist : title;
+        return {
+            "key": MediaService.available
+                ? [MediaService.activeService, title, artist, MediaService.album, MediaService.artUrl, String(MediaService.duration)].join("|")
+                : "__empty__",
+            "title": MediaService.available ? displayTitle : "",
+            "artUrl": MediaService.artUrl,
+            "available": MediaService.available
+        };
+    }
+
+    function syncTrackState() {
+        const nextState = compactTrackState();
+        if (currentTrackState.key === undefined) {
+            currentTrackState = nextState;
+            previousTrackState = nextState;
+            return;
+        }
+        if (currentTrackState.key === nextState.key) {
+            currentTrackState = nextState;
+            return;
+        }
+        previousTrackState = currentTrackState;
+        currentTrackState = nextState;
+        transitionDirection = pendingTransitionDirection !== 0 ? pendingTransitionDirection : 1;
+        pendingTransitionDirection = 0;
+        transitionActive = true;
+        transitionProgress = 0;
+        compactTransition.restart();
+    }
+
+    function pointerInside(item) {
+        if (!gestureArea.containsMouse || !item)
+            return false;
+        const point = item.mapFromItem(gestureArea, gestureArea.mouseX, gestureArea.mouseY);
+        return point.x >= 0 && point.x <= item.width && point.y >= 0 && point.y <= item.height;
+    }
+
+    function clampSwipeOffset(rawValue) {
+        const limit = compactLevel >= 2 ? 54 : 68;
+        return Math.max(-limit, Math.min(limit, rawValue));
     }
 
     Component.onCompleted: {
         MediaService.registerClient(clientId);
+        CavaService.registerClient(clientId);
+        currentTrackState = compactTrackState();
+        previousTrackState = currentTrackState;
     }
     Component.onDestruction: {
         MediaService.releaseClient(clientId);
+        CavaService.releaseClient(clientId);
+    }
+
+    Connections {
+        target: MediaService
+
+        function onStateChanged() {
+            root.syncTrackState();
+        }
+    }
+
+    NumberAnimation {
+        id: compactTransition
+
+        target: root
+        property: "transitionProgress"
+        from: 0
+        to: 1
+        duration: 280
+        easing.type: Easing.OutCubic
+        onStopped: {
+            root.transitionActive = false;
+            root.previousTrackState = root.currentTrackState;
+            root.transitionProgress = 1;
+        }
+    }
+
+    Timer {
+        id: suppressClickReset
+
+        interval: 180
+        repeat: false
+        onTriggered: root.suppressNextClick = false
+    }
+
+    Behavior on swipeOffset {
+        enabled: !gestureArea.pressed && !transitionActive
+
+        NumberAnimation {
+            duration: 170
+            easing.type: Easing.OutCubic
+        }
     }
 
     Text {
         id: titleMeasure
 
         visible: false
-        text: root.titleText
+        text: currentTrackState.title
         font.pixelSize: compactLevel >= 2 ? 11 : 12
         font.family: ArchipelagoConfig.textFontFamily
         font.weight: Font.DemiBold
     }
 
-    Row {
+    Item {
+        id: viewport
+
         anchors.fill: parent
-        anchors.leftMargin: root.layoutPaddingLeft
-        anchors.rightMargin: root.layoutPaddingRight
-        spacing: root.layoutSpacing
+        clip: true
         visible: MediaService.available
 
-        AudioBars {
-            width: compactLevel >= 2 ? 16 : 20
-            height: 18
-            anchors.verticalCenter: parent.verticalCenter
-            active: MediaService.playing
+        CompactTrackLayer {
+            anchors.fill: parent
+            trackData: root.previousTrackState
+            interactionEnabled: false
+            x: root.transitionActive ? root.transitionDirection * root.transitionProgress * (compactLevel >= 2 ? 48 : 64) : 0
+            opacity: root.transitionActive ? (1 - root.transitionProgress) : 0
         }
 
-        Rectangle {
-            width: root.coverSize
-            height: root.coverSize
-            radius: 5
-            color: StyleTokens.module
-            clip: true
-            anchors.verticalCenter: parent.verticalCenter
+        CompactTrackLayer {
+            anchors.fill: parent
+            trackData: root.currentTrackState
+            interactionEnabled: !root.transitionActive
+            x: root.transitionActive
+                ? root.transitionDirection * (root.transitionProgress - 1) * (compactLevel >= 2 ? 48 : 64)
+                : root.swipeOffset
+            opacity: root.transitionActive ? Math.min(1, 0.2 + root.transitionProgress * 0.8) : 1
+        }
+    }
 
-            Image {
-                anchors.fill: parent
-                source: MediaService.artUrl
-                fillMode: Image.PreserveAspectCrop
-                visible: status === Image.Ready
-            }
+    MouseArea {
+        id: gestureArea
 
-            MediaIcon {
-                anchors.centerIn: parent
-                width: 14
-                height: 14
-                icon: "note"
-                color: StyleTokens.textSecondary
-                visible: MediaService.artUrl === ""
-            }
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        enabled: MediaService.available
+        hoverEnabled: true
+        preventStealing: true
 
+        property real pressX: 0
+        property real pressY: 0
+
+        onPressed: function(mouse) {
+            suppressClickReset.stop();
+            pressX = mouse.x;
+            pressY = mouse.y;
+            root.suppressNextClick = false;
         }
 
-        Item {
-            id: titleBox
+        onPositionChanged: function(mouse) {
+            if (!(mouse.buttons & Qt.LeftButton))
+                return;
 
-            property bool hovered: titleHover.containsMouse
-            property bool shouldScroll: titleText.contentWidth > width + 4
-            readonly property real scrollDistance: Math.max(0, titleText.contentWidth - width + 16)
+            const deltaX = mouse.x - pressX;
+            const deltaY = mouse.y - pressY;
+            if (Math.abs(deltaY) > 24)
+                return;
+            if (Math.abs(deltaX) <= Math.abs(deltaY) + 4 && Math.abs(root.swipeOffset) < 0.5)
+                return;
 
-            width: Math.max(40, parent.width - 20 - root.coverSize - root.controlSize * 3 - parent.spacing * 5)
-            height: parent.height
-            clip: true
+            root.swipeOffset = root.clampSwipeOffset(deltaX);
+        }
 
-            Text {
-                id: titleText
+        onReleased: function(mouse) {
+            if (mouse.button !== Qt.LeftButton) {
+                root.swipeOffset = 0;
+                return;
+            }
 
-                y: Math.round((parent.height - height) / 2)
-                x: titleBox.hovered && titleBox.shouldScroll ? -titleBox.scrollDistance : 0
-                width: titleBox.shouldScroll ? implicitWidth + 16 : titleBox.width
-                text: root.titleText
-                color: StyleTokens.textPrimary
-                font.pixelSize: compactLevel >= 2 ? 11 : 12
-                font.family: ArchipelagoConfig.textFontFamily
-                font.weight: Font.DemiBold
-                elide: titleBox.hovered ? Text.ElideNone : Text.ElideRight
-                maximumLineCount: 1
+            const deltaX = mouse.x - pressX;
+            const deltaY = mouse.y - pressY;
+            const horizontalDrag = Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) + 4;
+            const swipeThreshold = compactLevel >= 2 ? 38 : 48;
+            root.suppressNextClick = horizontalDrag;
+            if (root.suppressNextClick)
+                suppressClickReset.restart();
 
-                Behavior on x {
-                    NumberAnimation {
-                        duration: Math.max(900, titleBox.scrollDistance * 28)
-                        easing.type: Easing.InOutQuad
-                    }
-
+            if (horizontalDrag && Math.abs(deltaX) >= swipeThreshold) {
+                if (deltaX < 0 && MediaService.canGoPrevious) {
+                    root.pendingTransitionDirection = -1;
+                    MediaService.previous();
+                } else if (deltaX > 0 && MediaService.canGoNext) {
+                    root.pendingTransitionDirection = 1;
+                    MediaService.next();
                 }
+            }
 
+            root.swipeOffset = 0;
+        }
+
+        onClicked: function(mouse) {
+            if (root.suppressNextClick) {
+                suppressClickReset.stop();
+                root.suppressNextClick = false;
+                return;
+            }
+
+            if (mouse.button === Qt.RightButton) {
+                MediaService.playPause();
+                return;
+            }
+
+            if (shellWindow)
+                shellWindow.toggleModule(root.moduleId);
+        }
+
+        onCanceled: {
+            suppressClickReset.stop();
+            root.suppressNextClick = false;
+            root.swipeOffset = 0;
+        }
+
+        onWheel: function(wheel) {
+            if (!MediaService.available)
+                return;
+
+            MediaService.setVolume(MediaService.volume + (wheel.angleDelta.y > 0 ? 0.04 : -0.04));
+            wheel.accepted = true;
+        }
+    }
+
+    component CompactTrackLayer: Item {
+        id: trackLayer
+
+        property var trackData: ({
+            "key": "__empty__",
+            "title": "",
+            "artUrl": "",
+            "available": false
+        })
+        property bool interactionEnabled: false
+
+        Row {
+            anchors.fill: parent
+            anchors.leftMargin: root.layoutPaddingLeft
+            anchors.rightMargin: root.layoutPaddingRight
+            spacing: root.layoutSpacing
+
+            AudioBars {
+                width: root.barWidth
+                height: 18
+                anchors.verticalCenter: parent.verticalCenter
+                active: MediaService.playing
+                levels: CavaService.levels
             }
 
             Rectangle {
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: 18
-                visible: titleBox.shouldScroll && !titleBox.hovered
+                width: root.coverSize
+                height: root.coverSize
+                radius: 5
+                color: StyleTokens.module
+                clip: true
+                anchors.verticalCenter: parent.verticalCenter
 
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-
-                    GradientStop {
-                        position: 0
-                        color: "#00000000"
-                    }
-
-                    GradientStop {
-                        position: 1
-                        color: StyleTokens.panel
-                    }
-
+                Image {
+                    anchors.fill: parent
+                    source: trackLayer.trackData.artUrl || ""
+                    fillMode: Image.PreserveAspectCrop
+                    visible: status === Image.Ready
                 }
 
+                MediaIcon {
+                    anchors.centerIn: parent
+                    width: 14
+                    height: 14
+                    icon: "note"
+                    color: StyleTokens.textSecondary
+                    visible: (trackLayer.trackData.artUrl || "") === ""
+                }
             }
 
-            MouseArea {
-                id: titleHover
+            Item {
+                id: titleBox
 
-                anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
+                property bool hovered: trackLayer.interactionEnabled && root.pointerInside(titleBox)
+                property bool shouldScroll: titleText.implicitWidth > width + 4
+                property real marqueeOffset: 0
+                readonly property real scrollDistance: Math.max(0, titleText.implicitWidth - width + 18)
+
+                width: Math.max(72, parent.width - root.barWidth - root.coverSize - parent.spacing * 2)
+                height: parent.height
+                clip: true
+
+                onHoveredChanged: {
+                    if (hovered && shouldScroll) {
+                        marquee.restart();
+                    } else {
+                        marquee.stop();
+                        marqueeOffset = 0;
+                    }
+                }
+                onShouldScrollChanged: {
+                    if (!shouldScroll) {
+                        marquee.stop();
+                        marqueeOffset = 0;
+                    } else if (hovered) {
+                        marquee.restart();
+                    }
+                }
+
+                Text {
+                    id: titleText
+
+                    y: Math.round((parent.height - height) / 2)
+                    x: -titleBox.marqueeOffset
+                    width: titleBox.shouldScroll ? implicitWidth : titleBox.width
+                    text: trackLayer.trackData.title || ""
+                    color: StyleTokens.textPrimary
+                    font.pixelSize: compactLevel >= 2 ? 11 : 12
+                    font.family: ArchipelagoConfig.textFontFamily
+                    font.weight: Font.DemiBold
+                    elide: titleBox.hovered ? Text.ElideNone : Text.ElideRight
+                    maximumLineCount: 1
+                }
+
+                Rectangle {
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 22
+                    visible: titleBox.shouldScroll && !titleBox.hovered
+
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+
+                        GradientStop {
+                            position: 0
+                            color: "#00000000"
+                        }
+
+                        GradientStop {
+                            position: 1
+                            color: StyleTokens.panel
+                        }
+                    }
+                }
+
+                SequentialAnimation {
+                    id: marquee
+
+                    loops: Animation.Infinite
+                    running: false
+
+                    PauseAnimation {
+                        duration: 260
+                    }
+
+                    NumberAnimation {
+                        target: titleBox
+                        property: "marqueeOffset"
+                        from: 0
+                        to: titleBox.scrollDistance
+                        duration: Math.max(1800, titleBox.scrollDistance * 24)
+                        easing.type: Easing.Linear
+                    }
+
+                    PauseAnimation {
+                        duration: 180
+                    }
+
+                    ScriptAction {
+                        script: titleBox.marqueeOffset = 0
+                    }
+                }
             }
-
         }
-
-        CompactButton {
-            icon: "previous"
-            enabled: MediaService.canGoPrevious
-            size: root.controlSize
-            onClicked: MediaService.previous()
-        }
-
-        CompactButton {
-            icon: MediaService.playing ? "pause" : "play"
-            enabled: MediaService.canControl && (MediaService.canPlay || MediaService.canPause)
-            size: root.controlSize
-            emphasized: true
-            onClicked: MediaService.playPause()
-        }
-
-        CompactButton {
-            icon: "next"
-            enabled: MediaService.canGoNext
-            size: root.controlSize
-            onClicked: MediaService.next()
-        }
-
     }
 
     component AudioBars: Item {
         id: bars
 
         property bool active: false
+        property var levels: []
+        readonly property int barCount: levels && levels.length > 0 ? levels.length : 8
 
         Row {
             anchors.centerIn: parent
             spacing: 2
 
             Repeater {
-                model: 4
+                model: bars.barCount
 
                 Rectangle {
                     required property int index
 
-                    width: 3
-                    height: bars.active ? 8 + ((index * 5 + pulse.tick) % 10) : 5
-                    radius: 2
+                    readonly property real rawLevel: index < bars.levels.length ? Number(bars.levels[index] || 0) : 0
+                    readonly property real clampedLevel: Math.max(0, Math.min(1, rawLevel))
+
+                    width: compactLevel >= 2 ? 2 : 3
+                    height: Math.max(4, Math.round(4 + clampedLevel * (bars.height - 5)))
+                    radius: width / 2
                     anchors.verticalCenter: parent.verticalCenter
                     color: bars.active ? StyleTokens.accent : StyleTokens.textSecondary
+                    opacity: bars.active ? 1 : 0.7
 
                     Behavior on height {
                         NumberAnimation {
-                            duration: 140
+                            duration: 95
+                            easing.type: Easing.OutCubic
                         }
-
                     }
-
                 }
-
             }
-
         }
-
-        Timer {
-            id: pulse
-
-            property int tick: 0
-
-            interval: 180
-            running: bars.active
-            repeat: true
-            onTriggered: tick += 1
-        }
-
-    }
-
-    component CompactButton: Rectangle {
-        id: button
-
-        property string icon: "play"
-        property bool emphasized: false
-        property int size: 24
-
-        signal clicked()
-
-        width: size
-        height: size
-        radius: size / 2
-        color: emphasized && enabled ? StyleTokens.accent : StyleTokens.transparent
-        opacity: enabled ? 1 : 0.42
-        anchors.verticalCenter: parent.verticalCenter
-
-        MediaIcon {
-            anchors.centerIn: parent
-            width: Math.round(button.size * 0.58)
-            height: Math.round(button.size * 0.58)
-            icon: button.icon
-            color: StyleTokens.textPrimary
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            enabled: button.enabled
-            onClicked: button.clicked()
-        }
-
     }
 
     component MediaIcon: Canvas {
@@ -337,5 +523,4 @@ Item {
             }
         }
     }
-
 }

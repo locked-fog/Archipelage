@@ -10,6 +10,8 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+Runtime dependency: `cava`
+
 ## Package
 
 Create the source archive expected by `PKGBUILD` from the repository root:
@@ -18,8 +20,8 @@ Create the source archive expected by `PKGBUILD` from the repository root:
 tar --exclude='./plugins/media-control-center/build' \
   --exclude='./plugins/media-control-center/pkg' \
   --exclude='./plugins/media-control-center/archipelago-plugin-media-control-center-*' \
-  -czf plugins/media-control-center/archipelago-plugin-media-control-center-0.2.0.tar.gz \
-  --transform='s#^plugins/media-control-center#archipelago-plugin-media-control-center-0.2.0#' \
+  -czf plugins/media-control-center/archipelago-plugin-media-control-center-0.3.0.tar.gz \
+  --transform='s#^plugins/media-control-center#archipelago-plugin-media-control-center-0.3.0#' \
   plugins/media-control-center
 ```
 
@@ -28,6 +30,6 @@ Then build and publish:
 ```bash
 cd plugins/media-control-center
 makepkg -f --cleanbuild
-install -Dm644 archipelago-plugin-media-control-center-0.2.0-1-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
-repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-plugin-media-control-center-0.2.0-1-x86_64.pkg.tar.zst
+install -Dm644 archipelago-plugin-media-control-center-0.3.0-1-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
+repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-plugin-media-control-center-0.3.0-1-x86_64.pkg.tar.zst
 ```
