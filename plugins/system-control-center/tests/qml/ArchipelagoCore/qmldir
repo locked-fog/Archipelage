@@ -1,0 +1,3 @@
+module ArchipelagoCore
+singleton ArchipelagoConfig 1.0 ArchipelagoConfig.qml
+singleton StyleTokens 1.0 StyleTokens.qml

@@ -6,6 +6,16 @@ class BrightnessServiceTests : public QObject {
     Q_OBJECT
 
 private slots:
+    void parseMachineReadableOutput()
+    {
+        bool ok = false;
+        const qreal value = BrightnessService::parseMachineReadableBrightness(
+            QStringLiteral("nvidia_wmi_ec_backlight,backlight,494,62%,800"),
+            &ok);
+        QCOMPARE(ok, true);
+        QCOMPARE(value, qreal(494.0 / 800.0));
+    }
+
     void constructsWithDefaultState()
     {
         // On hosts without /sys/class/backlight entries brightness

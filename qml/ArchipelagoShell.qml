@@ -65,6 +65,10 @@ PanelWindow {
         previewController.dismissLayout(moduleId || "", templateId || "");
     }
 
+    function dismissAllPreviews() {
+        previewController.dismissAll();
+    }
+
     function preferredExpandedWidth(moduleId) {
         const preferred = moduleEntry(moduleId).preferredWidth;
         return preferred && preferred > 0 ? preferred : ArchipelagoConfig.expandedWidth;
@@ -87,6 +91,7 @@ PanelWindow {
     }
 
     function closeExpanded() {
+        dismissAllPreviews();
         islandHost.closeExpanded();
     }
 
@@ -186,9 +191,14 @@ PanelWindow {
 
     MouseArea {
         anchors.fill: parent
-        enabled: islandHost.expandedMounted
+        enabled: islandHost.expandedMounted || previewController.mounted
         acceptedButtons: Qt.LeftButton
-        onClicked: root.closeExpanded()
+        onClicked: {
+            if (previewController.mounted)
+                root.dismissAllPreviews()
+            else
+                root.closeExpanded()
+        }
     }
 
     IslandHost {

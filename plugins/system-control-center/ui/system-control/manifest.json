@@ -1,0 +1,66 @@
+{
+  "id": "system-control",
+  "label": "System",
+  "version": "0.1.0",
+  "anchors": ["right"],
+  "defaultPriority": 65,
+  "compact": "Compact.qml",
+  "expanded": "Expanded.qml",
+  "compactLayout": {
+    "preferredWidth": 128,
+    "minimumWidth": 112,
+    "maximumWidth": 152,
+    "visible": true,
+    "priority": 65
+  },
+  "preferredWidth": 560,
+  "preferredHeight": 420,
+  "previewTemplates": [
+    {
+      "id": "wifi",
+      "component": "WifiPreview.qml",
+      "defaultWidth": 360,
+      "defaultHeight": 280,
+      "timeoutMs": 0,
+      "maxVisible": 1,
+      "focusPolicy": "request"
+    },
+    {
+      "id": "bluetooth",
+      "component": "BluetoothPreview.qml",
+      "defaultWidth": 380,
+      "defaultHeight": 320,
+      "timeoutMs": 0,
+      "maxVisible": 1,
+      "focusPolicy": "request"
+    },
+    {
+      "id": "bluetooth-add",
+      "component": "BluetoothDiscoveryPreview.qml",
+      "defaultWidth": 380,
+      "defaultHeight": 320,
+      "timeoutMs": 0,
+      "maxVisible": 1,
+      "focusPolicy": "request"
+    },
+    {
+      "id": "audio-output",
+      "component": "AudioOutputPreview.qml",
+      "defaultWidth": 400,
+      "defaultHeight": 320,
+      "timeoutMs": 0,
+      "maxVisible": 1,
+      "focusPolicy": "request"
+    },
+    {
+      "id": "display",
+      "component": "DisplayPreview.qml",
+      "defaultWidth": 400,
+      "defaultHeight": 320,
+      "timeoutMs": 0,
+      "maxVisible": 1,
+      "focusPolicy": "request"
+    }
+  ],
+  "dataNeeds": ["networkmanager", "bluez", "wireplumber", "brightness", "power-profiles"]
+}
