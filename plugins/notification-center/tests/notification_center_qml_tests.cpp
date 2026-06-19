@@ -53,6 +53,7 @@ private slots:
             QStringLiteral("ui/notifications/Compact.qml"),
             QStringLiteral("ui/notifications/Expanded.qml"),
             QStringLiteral("ui/notifications/NotificationPreview.qml"),
+            QStringLiteral("ui/notifications/NotificationAvatar.qml"),
             QStringLiteral("ui/notifications/NotificationGlyph.qml"),
         };
 

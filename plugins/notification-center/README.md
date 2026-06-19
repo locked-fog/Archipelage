@@ -36,6 +36,6 @@ Then build and publish:
 ```bash
 cd plugins/notification-center
 makepkg -f --cleanbuild
-install -Dm644 archipelago-plugin-notification-center-0.1.0-2-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
-repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-plugin-notification-center-0.1.0-2-x86_64.pkg.tar.zst
+install -Dm644 archipelago-plugin-notification-center-0.1.0-3-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
+repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-plugin-notification-center-0.1.0-3-x86_64.pkg.tar.zst
 ```

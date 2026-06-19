@@ -24,16 +24,17 @@ Item {
     readonly property bool dndMessageVisible: NotificationCenterService.mode === "dnd"
         && transientVisible
         && activeNotificationId > 0
+    readonly property bool actionWindowActive: lowPreviewVisible || dndMessageVisible
     readonly property int preferredCompactWidth: lowPreviewVisible ? expandedWidth : collapsedWidth
     readonly property var activeNotification: activeNotificationId > 0
         ? NotificationCenterService.notification(activeNotificationId)
         : NotificationCenterService.latestNotification
     readonly property int badgeCount: NotificationCenterService.unreadCount
-    readonly property string glyphName: lowPreviewVisible || dndMessageVisible ? "message" : NotificationCenterService.mode
+    readonly property string glyphName: actionWindowActive ? "message" : NotificationCenterService.mode
 
     property var handlers: ({
         "primaryClicked": function() {
-            if (root.badgeCount <= 0)
+            if (!root.actionWindowActive)
                 return false
 
             const item = root.activeNotification && root.activeNotification.id !== undefined
@@ -131,13 +132,15 @@ Item {
             width: root.collapsedWidth - 8
             height: parent.height
 
-            NotificationGlyph {
+            NotificationAvatar {
                 width: compactLevel >= 2 ? 17 : 19
                 height: width
                 anchors.centerIn: parent
-                icon: root.glyphName
+                notification: root.actionWindowActive ? root.activeNotification : ({})
+                fallbackIcon: root.glyphName
+                backgroundColor: "transparent"
+                borderColor: "transparent"
                 strokeColor: root.dndMessageVisible ? StyleTokens.warning : StyleTokens.textPrimary
-                accentColor: StyleTokens.warning
             }
 
             Rectangle {

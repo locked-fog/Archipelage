@@ -1,12 +1,20 @@
 #include "NotificationCenterService.h"
 
 #include <QDBusAbstractAdaptor>
+#include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusVariant>
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFileInfo>
+#include <QImage>
 #include <QLoggingCategory>
 #include <QSettings>
+#include <QStandardPaths>
+#include <QUrl>
 
 #include <algorithm>
+#include <cstring>
 
 namespace {
 Q_LOGGING_CATEGORY(lcNotifications, "archipelago.plugins.notifications")
@@ -26,6 +34,130 @@ QVariant unwrapHint(const QVariant &value)
     if (value.canConvert<QDBusVariant>())
         return value.value<QDBusVariant>().variant();
     return value;
+}
+
+QString normalizedLocalImageSource(const QString &value)
+{
+    const QString trimmed = value.trimmed();
+    if (trimmed.isEmpty())
+        return QString();
+
+    const QUrl url(trimmed);
+    if (url.isValid() && !url.scheme().isEmpty()) {
+        if (url.scheme() == QStringLiteral("file"))
+            return url.toString();
+        return QString();
+    }
+
+    const QFileInfo info(trimmed);
+    if (info.isAbsolute() && info.exists())
+        return QUrl::fromLocalFile(info.absoluteFilePath()).toString();
+
+    return QString();
+}
+
+QImage imageFromFields(int width,
+                       int height,
+                       int rowStride,
+                       bool hasAlpha,
+                       int bitsPerSample,
+                       int channels,
+                       const QByteArray &data)
+{
+    if (width <= 0 || height <= 0 || rowStride <= 0 || bitsPerSample != 8 || data.isEmpty())
+        return {};
+
+    const int expectedChannels = hasAlpha ? 4 : 3;
+    if (channels < expectedChannels || rowStride < width * channels)
+        return {};
+
+    const qsizetype minimumBytes = static_cast<qsizetype>(rowStride) * (height - 1)
+        + static_cast<qsizetype>(width) * channels;
+    if (data.size() < minimumBytes)
+        return {};
+
+    QImage image(width, height, hasAlpha ? QImage::Format_RGBA8888 : QImage::Format_RGB888);
+    if (image.isNull())
+        return {};
+
+    const uchar *source = reinterpret_cast<const uchar *>(data.constData());
+    for (int row = 0; row < height; ++row) {
+        std::memcpy(image.scanLine(row), source + row * rowStride,
+                    static_cast<size_t>(width * expectedChannels));
+    }
+    return image;
+}
+
+QImage imageFromVariant(const QVariant &variant)
+{
+    const QVariant value = unwrapHint(variant);
+    if (value.canConvert<QImage>()) {
+        const QImage image = value.value<QImage>();
+        if (!image.isNull())
+            return image;
+    }
+
+    if (value.metaType() == QMetaType::fromType<QDBusArgument>()) {
+        QDBusArgument argument = value.value<QDBusArgument>();
+        if (argument.currentType() != QDBusArgument::StructureType)
+            return {};
+
+        int width = 0;
+        int height = 0;
+        int rowStride = 0;
+        bool hasAlpha = false;
+        int bitsPerSample = 0;
+        int channels = 0;
+        QByteArray data;
+
+        argument.beginStructure();
+        argument >> width >> height >> rowStride >> hasAlpha >> bitsPerSample >> channels >> data;
+        argument.endStructure();
+        return imageFromFields(width, height, rowStride, hasAlpha, bitsPerSample, channels, data);
+    }
+
+    const QVariantList fields = value.toList();
+    if (fields.size() < 7)
+        return {};
+
+    return imageFromFields(fields.at(0).toInt(),
+                           fields.at(1).toInt(),
+                           fields.at(2).toInt(),
+                           fields.at(3).toBool(),
+                           fields.at(4).toInt(),
+                           fields.at(5).toInt(),
+                           fields.at(6).toByteArray());
+}
+
+QString cacheImageSource(const QImage &image)
+{
+    if (image.isNull())
+        return QString();
+
+    QString cacheRoot = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation);
+    if (cacheRoot.isEmpty())
+        cacheRoot = QDir::tempPath();
+
+    QDir cacheDir(cacheRoot);
+    if (!cacheDir.mkpath(QStringLiteral("archipelago/notification-images")))
+        return QString();
+
+    const QByteArray bytes(reinterpret_cast<const char *>(image.constBits()), image.sizeInBytes());
+    QByteArray fingerprint;
+    fingerprint.append(QByteArray::number(image.width()));
+    fingerprint.append('x');
+    fingerprint.append(QByteArray::number(image.height()));
+    fingerprint.append(':');
+    fingerprint.append(QByteArray::number(image.format()));
+    fingerprint.append(':');
+    fingerprint.append(bytes);
+
+    const QString fileName = QString::fromLatin1(QCryptographicHash::hash(fingerprint, QCryptographicHash::Sha256).toHex())
+        + QStringLiteral(".png");
+    const QString filePath = cacheDir.filePath(QStringLiteral("archipelago/notification-images/") + fileName);
+    if (!QFileInfo::exists(filePath) && !image.save(filePath, "PNG"))
+        return QString();
+    return QUrl::fromLocalFile(filePath).toString();
 }
 }  // namespace
 
@@ -139,6 +271,45 @@ QString NotificationCenterService::normalizedMode(const QString &mode)
     return QString();
 }
 
+QString NotificationCenterService::notificationImageSource(const QString &appIcon, const QVariantMap &hints)
+{
+    const QStringList imageHintKeys = {
+        QStringLiteral("image-path"),
+        QStringLiteral("image_path"),
+    };
+    for (const QString &key : imageHintKeys) {
+        const QString source = normalizedLocalImageSource(unwrapHint(hints.value(key)).toString());
+        if (!source.isEmpty())
+            return source;
+    }
+
+    const QStringList imageDataHintKeys = {
+        QStringLiteral("image-data"),
+        QStringLiteral("image_data"),
+        QStringLiteral("icon_data"),
+    };
+    for (const QString &key : imageDataHintKeys) {
+        const QString source = cacheImageSource(imageFromVariant(hints.value(key)));
+        if (!source.isEmpty())
+            return source;
+    }
+
+    return normalizedLocalImageSource(appIcon);
+}
+
+QString NotificationCenterService::notificationIconName(const QString &appIcon)
+{
+    const QString trimmed = appIcon.trimmed();
+    if (trimmed.isEmpty() || !normalizedLocalImageSource(trimmed).isEmpty())
+        return QString();
+
+    const QUrl url(trimmed);
+    if ((url.isValid() && !url.scheme().isEmpty()) || trimmed.contains(QLatin1Char('/')))
+        return QString();
+
+    return trimmed;
+}
+
 uint NotificationCenterService::notify(const QString &appName,
                                        uint replacesId,
                                        const QString &appIcon,
@@ -149,11 +320,13 @@ uint NotificationCenterService::notify(const QString &appName,
                                        int expireTimeout)
 {
     const int previousUnread = calculateUnreadCount();
-    const int replaceIndex = replacesId > 0 ? indexForId(replacesId) : -1;
     NotificationRecord record;
-    record.id = replaceIndex >= 0 ? replacesId : nextNotificationId();
+    record.id = nextNotificationId();
+    record.sourceId = nextSourceId(replacesId);
     record.appName = appName;
     record.appIcon = appIcon;
+    record.imageSource = notificationImageSource(appIcon, hints);
+    record.iconName = notificationIconName(appIcon);
     record.summary = summary;
     record.body = body;
     record.actions = actionEntries(actions);
@@ -165,26 +338,23 @@ uint NotificationCenterService::notify(const QString &appName,
     record.transient = hintBool(hints, QStringLiteral("transient"));
     record.urgency = hintInt(hints, QStringLiteral("urgency"), 1);
 
-    if (replaceIndex >= 0) {
-        m_records[replaceIndex] = record;
-        m_records.move(replaceIndex, 0);
-    } else {
-        m_records.prepend(record);
-    }
+    m_closedSourceIds.remove(record.sourceId);
+    m_records.prepend(record);
 
     enforceMaxNotifications();
     const QVariantMap payload = toMap(record);
     emitCollectionChanged(previousUnread);
     emit notificationArrived(payload);
-    return record.id;
+    return record.sourceId;
 }
 
 bool NotificationCenterService::closeNotificationFromClient(uint id)
 {
-    const int index = indexForId(id);
+    const int index = indexForSourceId(id);
     if (index < 0)
         return false;
-    return closeNotificationAt(index, ClosedByCall);
+    emitNotificationClosed(id, ClosedByCall);
+    return true;
 }
 
 void NotificationCenterService::registerClient(const QString &clientId)
@@ -247,7 +417,7 @@ bool NotificationCenterService::invokeNotification(int id, const QString &action
         return false;
     }
 
-    emit actionInvoked(record.id, requestedAction);
+    emit actionInvoked(record.sourceId, requestedAction);
     if (!record.resident)
         closeNotificationAt(indexForId(record.id), DismissedByUser);
     else {
@@ -404,8 +574,11 @@ QVariantMap NotificationCenterService::toMap(const NotificationRecord &record) c
 {
     QVariantMap map;
     map.insert(QStringLiteral("id"), record.id);
+    map.insert(QStringLiteral("sourceId"), record.sourceId);
     map.insert(QStringLiteral("appName"), record.appName);
     map.insert(QStringLiteral("appIcon"), record.appIcon);
+    map.insert(QStringLiteral("imageSource"), record.imageSource);
+    map.insert(QStringLiteral("iconName"), record.iconName);
     map.insert(QStringLiteral("summary"), record.summary);
     map.insert(QStringLiteral("body"), record.body);
     map.insert(QStringLiteral("actions"), record.actions);
@@ -434,11 +607,32 @@ int NotificationCenterService::indexForId(int id) const
     return id <= 0 ? -1 : indexForId(static_cast<uint>(id));
 }
 
+int NotificationCenterService::indexForSourceId(uint sourceId) const
+{
+    for (int index = 0; index < m_records.size(); ++index) {
+        if (m_records.at(index).sourceId == sourceId)
+            return index;
+    }
+    return -1;
+}
+
 uint NotificationCenterService::nextNotificationId()
 {
     if (m_nextId == 0)
         m_nextId = 1;
     return m_nextId++;
+}
+
+uint NotificationCenterService::nextSourceId(uint requestedSourceId)
+{
+    if (requestedSourceId > 0) {
+        if (requestedSourceId >= m_nextSourceId)
+            m_nextSourceId = requestedSourceId + 1;
+        return requestedSourceId;
+    }
+    if (m_nextSourceId == 0)
+        m_nextSourceId = 1;
+    return m_nextSourceId++;
 }
 
 int NotificationCenterService::calculateUnreadCount() const
@@ -463,11 +657,19 @@ bool NotificationCenterService::closeNotificationAt(int index, uint reason)
     if (index < 0 || index >= m_records.size())
         return false;
     const int previousUnread = calculateUnreadCount();
-    const uint id = m_records.at(index).id;
+    const uint sourceId = m_records.at(index).sourceId;
     m_records.removeAt(index);
-    emit notificationClosed(id, reason);
+    emitNotificationClosed(sourceId, reason);
     emitCollectionChanged(previousUnread);
     return true;
+}
+
+void NotificationCenterService::emitNotificationClosed(uint sourceId, uint reason)
+{
+    if (sourceId == 0 || m_closedSourceIds.contains(sourceId))
+        return;
+    m_closedSourceIds.insert(sourceId);
+    emit notificationClosed(sourceId, reason);
 }
 
 void NotificationCenterService::enforceMaxNotifications()

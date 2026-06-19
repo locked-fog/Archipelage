@@ -251,20 +251,15 @@ Item {
             anchors.margins: 12
             spacing: 12
 
-            Rectangle {
+            NotificationAvatar {
                 width: 40
                 height: 40
-                radius: 20
                 anchors.verticalCenter: parent.verticalCenter
-                color: notification.urgency >= 2 ? Qt.rgba(1, 0.23, 0.19, 0.16) : StyleTokens.track
-
-                NotificationGlyph {
-                    anchors.centerIn: parent
-                    width: 20
-                    height: 20
-                    icon: "message"
-                    strokeColor: notification.urgency >= 2 ? StyleTokens.danger : StyleTokens.textPrimary
-                }
+                notification: row.notification
+                fallbackIcon: "message"
+                backgroundColor: notification.urgency >= 2 ? Qt.rgba(1, 0.23, 0.19, 0.16) : StyleTokens.track
+                borderColor: notification.urgency >= 2 ? Qt.rgba(1, 0.23, 0.19, 0.34) : Qt.rgba(1, 1, 1, 0.08)
+                strokeColor: notification.urgency >= 2 ? StyleTokens.danger : StyleTokens.textPrimary
             }
 
             Column {

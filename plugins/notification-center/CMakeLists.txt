@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Qml Quick DBus Test)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick DBus Test)
 
 include(GNUInstallDirs)
 
@@ -36,6 +36,7 @@ endif()
 
 target_link_libraries(ArchipelagoPluginsNotifications PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Qml
     Qt6::DBus
 )
@@ -56,6 +57,7 @@ target_include_directories(notification_center_backend_tests PRIVATE
 
 target_link_libraries(notification_center_backend_tests PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::DBus
     Qt6::Qml
     Qt6::Test

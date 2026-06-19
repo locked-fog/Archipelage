@@ -45,6 +45,8 @@ public:
 
     static QVariantList actionEntries(const QStringList &actions);
     static QString normalizedMode(const QString &mode);
+    static QString notificationImageSource(const QString &appIcon, const QVariantMap &hints);
+    static QString notificationIconName(const QString &appIcon);
 
     uint notify(const QString &appName,
                 uint replacesId,
@@ -83,8 +85,11 @@ signals:
 private:
     struct NotificationRecord {
         uint id = 0;
+        uint sourceId = 0;
         QString appName;
         QString appIcon;
+        QString imageSource;
+        QString iconName;
         QString summary;
         QString body;
         QVariantList actions;
@@ -105,9 +110,12 @@ private:
     QVariantMap toMap(const NotificationRecord &record) const;
     int indexForId(uint id) const;
     int indexForId(int id) const;
+    int indexForSourceId(uint sourceId) const;
     uint nextNotificationId();
+    uint nextSourceId(uint requestedSourceId = 0);
     int calculateUnreadCount() const;
     void emitCollectionChanged(int previousUnreadCount);
+    void emitNotificationClosed(uint sourceId, uint reason);
     bool closeNotificationAt(int index, uint reason);
     void enforceMaxNotifications();
     QString actionLabel(const NotificationRecord &record, const QString &actionKey) const;
@@ -118,9 +126,11 @@ private:
 
     QSet<QString> m_clients;
     QList<NotificationRecord> m_records;
+    QSet<uint> m_closedSourceIds;
     QString m_mode = QStringLiteral("normal");
     QString m_lastError;
     uint m_nextId = 1;
+    uint m_nextSourceId = 1;
     int m_maxNotifications = 100;
     bool m_serverAvailable = false;
     bool m_serverStarted = false;

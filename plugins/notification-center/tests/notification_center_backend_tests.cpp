@@ -1,6 +1,9 @@
+#include <QFileInfo>
+#include <QImage>
 #include <QSignalSpy>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QUrl>
 #include <QtTest/QtTest>
 
 #include "NotificationCenterService.h"
@@ -58,7 +61,7 @@ private slots:
         QCOMPARE(notification.value(QStringLiteral("actions")).toList().size(), 1);
     }
 
-    void notifyReplacesExistingNotification()
+    void notifyPreservesUnreadHistoryForReplacesId()
     {
         NotificationCenterService service;
 
@@ -73,11 +76,60 @@ private slots:
                                              -1);
 
         QCOMPARE(replaced, id);
-        QCOMPARE(service.notifications().size(), 1);
-        const QVariantMap notification = service.notifications().constFirst().toMap();
-        QCOMPARE(notification.value(QStringLiteral("summary")).toString(), QStringLiteral("New"));
-        QCOMPARE(notification.value(QStringLiteral("body")).toString(), QStringLiteral("Updated"));
-        QCOMPARE(service.unreadCount(), 1);
+        QCOMPARE(service.notifications().size(), 2);
+        QCOMPARE(service.unreadCount(), 2);
+
+        const QVariantMap latest = service.notifications().constFirst().toMap();
+        const QVariantMap previous = service.notifications().constLast().toMap();
+        QCOMPARE(latest.value(QStringLiteral("id")).toUInt(), 2u);
+        QCOMPARE(latest.value(QStringLiteral("sourceId")).toUInt(), id);
+        QCOMPARE(latest.value(QStringLiteral("summary")).toString(), QStringLiteral("New"));
+        QCOMPARE(latest.value(QStringLiteral("body")).toString(), QStringLiteral("Updated"));
+        QCOMPARE(previous.value(QStringLiteral("id")).toUInt(), 1u);
+        QCOMPARE(previous.value(QStringLiteral("sourceId")).toUInt(), id);
+    }
+
+    void notificationImageSourcesPreferSenderImages()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        QImage image(2, 2, QImage::Format_RGBA8888);
+        image.fill(Qt::red);
+        const QString filePath = dir.filePath(QStringLiteral("avatar.png"));
+        QVERIFY(image.save(filePath, "PNG"));
+
+        QVariantMap hints;
+        hints.insert(QStringLiteral("image-path"), filePath);
+
+        QCOMPARE(NotificationCenterService::notificationImageSource(QStringLiteral("qq"), hints),
+                 QUrl::fromLocalFile(filePath).toString());
+        QCOMPARE(NotificationCenterService::notificationIconName(QStringLiteral("qq")), QStringLiteral("qq"));
+        QCOMPARE(NotificationCenterService::notificationIconName(filePath), QString());
+    }
+
+    void notificationImageSourcesCacheInlineImageData()
+    {
+        QByteArray pixels;
+        pixels.append(char(0x1f));
+        pixels.append(char(0x80));
+        pixels.append(char(0xff));
+        pixels.append(char(0xff));
+
+        QVariantMap hints;
+        hints.insert(QStringLiteral("image-data"), QVariantList({
+                         1,
+                         1,
+                         4,
+                         true,
+                         8,
+                         4,
+                         pixels,
+                     }));
+
+        const QString source = NotificationCenterService::notificationImageSource(QString(), hints);
+        QVERIFY(source.startsWith(QStringLiteral("file://")));
+        QVERIFY(QFileInfo::exists(QUrl(source).toLocalFile()));
     }
 
     void invokeDefaultActionEmitsActionAndCloses()
@@ -154,6 +206,31 @@ private slots:
         QCOMPARE(closedSpy.size(), 0);
         QCOMPARE(service.notifications().size(), 0);
         QCOMPARE(service.unreadCount(), 0);
+    }
+
+    void clientCloseDoesNotRemoveUnreadNotification()
+    {
+        NotificationCenterService service;
+        QSignalSpy closedSpy(&service, &NotificationCenterService::notificationClosed);
+
+        const uint sourceId = service.notify(QStringLiteral("Chat"),
+                                             0,
+                                             QString(),
+                                             QStringLiteral("Ping"),
+                                             QString(),
+                                             {},
+                                             {},
+                                             -1);
+
+        QCOMPARE(service.closeNotificationFromClient(sourceId), true);
+        QCOMPARE(closedSpy.size(), 1);
+        QCOMPARE(closedSpy.at(0).at(0).toUInt(), sourceId);
+        QCOMPARE(closedSpy.at(0).at(1).toUInt(), 3u);
+        QCOMPARE(service.notifications().size(), 1);
+        QCOMPARE(service.unreadCount(), 1);
+
+        QCOMPARE(service.closeNotificationFromClient(sourceId), true);
+        QCOMPARE(closedSpy.size(), 1);
     }
 
     void cyclesModes()

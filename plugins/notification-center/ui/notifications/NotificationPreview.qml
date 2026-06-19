@@ -14,22 +14,15 @@ Item {
         anchors.margins: 14
         spacing: 12
 
-        Rectangle {
+        NotificationAvatar {
             width: 42
             height: 42
-            radius: 21
             anchors.verticalCenter: parent.verticalCenter
-            color: Qt.rgba(0.39, 0.78, 1.0, 0.16)
-            border.width: 1
-            border.color: Qt.rgba(0.39, 0.78, 1.0, 0.32)
-
-            NotificationGlyph {
-                anchors.centerIn: parent
-                width: 20
-                height: 20
-                icon: "message"
-                strokeColor: StyleTokens.textPrimary
-            }
+            notification: root.payload
+            fallbackIcon: "message"
+            backgroundColor: Qt.rgba(0.39, 0.78, 1.0, 0.16)
+            borderColor: Qt.rgba(0.39, 0.78, 1.0, 0.32)
+            strokeColor: StyleTokens.textPrimary
         }
 
         Column {
