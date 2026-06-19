@@ -4,9 +4,12 @@
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusVariant>
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
+#include <QIcon>
 #include <QImage>
 #include <QLoggingCategory>
 #include <QSettings>
@@ -159,6 +162,20 @@ QString cacheImageSource(const QImage &image)
         return QString();
     return QUrl::fromLocalFile(filePath).toString();
 }
+
+QString themedIconImageSource(const QString &iconName)
+{
+    const QString trimmed = iconName.trimmed();
+    if (trimmed.isEmpty() || qobject_cast<QGuiApplication *>(QCoreApplication::instance()) == nullptr)
+        return QString();
+
+    const QIcon icon = QIcon::fromTheme(trimmed);
+    if (icon.isNull())
+        return QString();
+
+    const QImage image = icon.pixmap(64, 64).toImage();
+    return cacheImageSource(image);
+}
 }  // namespace
 
 class NotificationServerAdaptor final : public QDBusAbstractAdaptor {
@@ -294,7 +311,11 @@ QString NotificationCenterService::notificationImageSource(const QString &appIco
             return source;
     }
 
-    return normalizedLocalImageSource(appIcon);
+    const QString appIconSource = normalizedLocalImageSource(appIcon);
+    if (!appIconSource.isEmpty())
+        return appIconSource;
+
+    return themedIconImageSource(notificationIconName(appIcon));
 }
 
 QString NotificationCenterService::notificationIconName(const QString &appIcon)
