@@ -7,8 +7,10 @@
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QHash>
 #include <QIcon>
 #include <QImage>
 #include <QLoggingCategory>
@@ -55,6 +57,23 @@ QString normalizedLocalImageSource(const QString &value)
     const QFileInfo info(trimmed);
     if (info.isAbsolute() && info.exists())
         return QUrl::fromLocalFile(info.absoluteFilePath()).toString();
+
+    return QString();
+}
+
+QString normalizedLocalDesktopFile(const QString &value)
+{
+    const QString trimmed = value.trimmed();
+    if (trimmed.isEmpty())
+        return QString();
+
+    const QUrl url(trimmed);
+    const QString path = url.isValid() && url.scheme() == QStringLiteral("file")
+        ? url.toLocalFile()
+        : trimmed;
+    const QFileInfo info(path);
+    if (info.isFile() && info.suffix() == QStringLiteral("desktop"))
+        return info.absoluteFilePath();
 
     return QString();
 }
@@ -175,6 +194,153 @@ QString themedIconImageSource(const QString &iconName)
 
     const QImage image = icon.pixmap(64, 64).toImage();
     return cacheImageSource(image);
+}
+
+QString iconFileImageSource(const QString &iconName)
+{
+    const QString trimmed = iconName.trimmed();
+    if (trimmed.isEmpty())
+        return QString();
+
+    static QHash<QString, QString> cache;
+    if (cache.contains(trimmed))
+        return cache.value(trimmed);
+
+    QStringList filters;
+    if (!QFileInfo(trimmed).suffix().isEmpty()) {
+        filters.append(trimmed);
+    } else {
+        filters = {
+            trimmed + QStringLiteral(".png"),
+            trimmed + QStringLiteral(".svg"),
+            trimmed + QStringLiteral(".xpm"),
+            trimmed + QStringLiteral(".jpg"),
+            trimmed + QStringLiteral(".jpeg"),
+            trimmed + QStringLiteral(".webp"),
+        };
+    }
+
+    QStringList roots;
+    const QStringList dataLocations = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
+    for (const QString &location : dataLocations) {
+        roots.append(QDir(location).filePath(QStringLiteral("icons")));
+        roots.append(QDir(location).filePath(QStringLiteral("pixmaps")));
+    }
+    roots.removeDuplicates();
+
+    for (const QString &root : roots) {
+        if (!QFileInfo::exists(root))
+            continue;
+        QDirIterator iterator(root, filters, QDir::Files, QDirIterator::Subdirectories);
+        while (iterator.hasNext()) {
+            const QString path = iterator.next();
+            if (path.contains(QStringLiteral("/apps/")) || path.contains(QStringLiteral("/apps."))) {
+                const QString source = QUrl::fromLocalFile(path).toString();
+                cache.insert(trimmed, source);
+                return source;
+            }
+        }
+    }
+
+    for (const QString &root : roots) {
+        if (!QFileInfo::exists(root))
+            continue;
+        QDirIterator iterator(root, filters, QDir::Files, QDirIterator::Subdirectories);
+        if (iterator.hasNext()) {
+            const QString source = QUrl::fromLocalFile(iterator.next()).toString();
+            cache.insert(trimmed, source);
+            return source;
+        }
+    }
+
+    cache.insert(trimmed, QString());
+    return QString();
+}
+
+QString hintString(const QVariantMap &hints, const QStringList &keys)
+{
+    for (const QString &key : keys) {
+        const QString value = unwrapHint(hints.value(key)).toString().trimmed();
+        if (!value.isEmpty())
+            return value;
+    }
+    return QString();
+}
+
+QString imageSourceFromIconSpec(const QString &iconSpec)
+{
+    const QString localSource = normalizedLocalImageSource(iconSpec);
+    if (!localSource.isEmpty())
+        return localSource;
+
+    const QString iconName = NotificationCenterService::notificationIconName(iconSpec);
+    const QString themeSource = themedIconImageSource(iconName);
+    if (!themeSource.isEmpty())
+        return themeSource;
+
+    return iconFileImageSource(iconName);
+}
+
+QStringList desktopEntryCandidates(const QString &desktopEntry)
+{
+    const QString trimmed = desktopEntry.trimmed();
+    if (trimmed.isEmpty())
+        return {};
+
+    QStringList stems = {trimmed};
+    const QString lower = trimmed.toLower();
+    if (lower != trimmed)
+        stems.append(lower);
+
+    QStringList candidates;
+    for (const QString &stem : stems) {
+        candidates.append(stem);
+        if (!stem.endsWith(QStringLiteral(".desktop")))
+            candidates.append(stem + QStringLiteral(".desktop"));
+    }
+    candidates.removeDuplicates();
+    return candidates;
+}
+
+QString locateDesktopEntryFile(const QString &desktopEntry)
+{
+    const QString localFile = normalizedLocalDesktopFile(desktopEntry);
+    if (!localFile.isEmpty())
+        return localFile;
+
+    const QStringList candidates = desktopEntryCandidates(desktopEntry);
+    for (const QString &candidate : candidates) {
+        const QString directPath = QStandardPaths::locate(QStandardPaths::ApplicationsLocation, candidate);
+        if (!directPath.isEmpty())
+            return directPath;
+    }
+
+    const QStringList locations = QStandardPaths::standardLocations(QStandardPaths::ApplicationsLocation);
+    for (const QString &location : locations) {
+        if (!QFileInfo::exists(location))
+            continue;
+        QDirIterator iterator(location, candidates, QDir::Files, QDirIterator::Subdirectories);
+        if (iterator.hasNext())
+            return iterator.next();
+    }
+
+    return QString();
+}
+
+QString desktopEntryIconName(const QString &desktopEntry)
+{
+    const QString desktopFile = locateDesktopEntryFile(desktopEntry);
+    if (desktopFile.isEmpty())
+        return QString();
+
+    QSettings settings(desktopFile, QSettings::IniFormat);
+    settings.beginGroup(QStringLiteral("Desktop Entry"));
+    return settings.value(QStringLiteral("Icon")).toString().trimmed();
+}
+
+QString imageSourceFromDesktopEntry(const QString &desktopEntry)
+{
+    return imageSourceFromIconSpec(desktopEntryIconName(desktopEntry));
 }
 }  // namespace
 
@@ -315,7 +481,16 @@ QString NotificationCenterService::notificationImageSource(const QString &appIco
     if (!appIconSource.isEmpty())
         return appIconSource;
 
-    return themedIconImageSource(notificationIconName(appIcon));
+    const QString appIconThemeSource = themedIconImageSource(notificationIconName(appIcon));
+    if (!appIconThemeSource.isEmpty())
+        return appIconThemeSource;
+
+    const QString desktopEntry = hintString(hints, {
+        QStringLiteral("desktop-entry"),
+        QStringLiteral("desktop_entry"),
+        QStringLiteral("desktopEntry"),
+    });
+    return imageSourceFromDesktopEntry(desktopEntry);
 }
 
 QString NotificationCenterService::notificationIconName(const QString &appIcon)
@@ -347,7 +522,17 @@ uint NotificationCenterService::notify(const QString &appName,
     record.appName = appName;
     record.appIcon = appIcon;
     record.imageSource = notificationImageSource(appIcon, hints);
+    if (record.imageSource.isEmpty())
+        record.imageSource = imageSourceFromDesktopEntry(appName);
     record.iconName = notificationIconName(appIcon);
+    if (record.iconName.isEmpty())
+        record.iconName = desktopEntryIconName(hintString(hints, {
+            QStringLiteral("desktop-entry"),
+            QStringLiteral("desktop_entry"),
+            QStringLiteral("desktopEntry"),
+        }));
+    if (record.iconName.isEmpty())
+        record.iconName = desktopEntryIconName(appName);
     record.summary = summary;
     record.body = body;
     record.actions = actionEntries(actions);

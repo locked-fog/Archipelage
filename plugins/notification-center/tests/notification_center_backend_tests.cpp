@@ -1,5 +1,6 @@
 #include <QFileInfo>
 #include <QImage>
+#include <QFile>
 #include <QSignalSpy>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -130,6 +131,31 @@ private slots:
         const QString source = NotificationCenterService::notificationImageSource(QString(), hints);
         QVERIFY(source.startsWith(QStringLiteral("file://")));
         QVERIFY(QFileInfo::exists(QUrl(source).toLocalFile()));
+    }
+
+    void notificationImageSourcesReadDesktopEntryHints()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        QImage image(2, 2, QImage::Format_RGBA8888);
+        image.fill(Qt::blue);
+        const QString iconPath = dir.filePath(QStringLiteral("qq.png"));
+        QVERIFY(image.save(iconPath, "PNG"));
+
+        const QString desktopPath = dir.filePath(QStringLiteral("qq.desktop"));
+        QFile desktopFile(desktopPath);
+        QVERIFY(desktopFile.open(QIODevice::WriteOnly | QIODevice::Text));
+        desktopFile.write("[Desktop Entry]\nName=QQ\nType=Application\nIcon=");
+        desktopFile.write(iconPath.toUtf8());
+        desktopFile.write("\n");
+        desktopFile.close();
+
+        QVariantMap hints;
+        hints.insert(QStringLiteral("desktop-entry"), desktopPath);
+
+        QCOMPARE(NotificationCenterService::notificationImageSource(QString(), hints),
+                 QUrl::fromLocalFile(iconPath).toString());
     }
 
     void invokeDefaultActionEmitsActionAndCloses()

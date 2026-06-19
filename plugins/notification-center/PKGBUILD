@@ -2,7 +2,7 @@
 
 pkgname=archipelago-plugin-notification-center
 pkgver=0.1.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Freedesktop notification center plugin for Archipelago"
 arch=('x86_64')
 url="https://github.com/Locked-Fog/Archipelago"
