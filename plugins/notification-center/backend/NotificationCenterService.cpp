@@ -2,8 +2,6 @@
 
 #include <QDBusAbstractAdaptor>
 #include <QDBusConnection>
-#include <QDBusContext>
-#include <QDBusError>
 #include <QDBusVariant>
 #include <QLoggingCategory>
 #include <QSettings>
@@ -31,7 +29,7 @@ QVariant unwrapHint(const QVariant &value)
 }
 }  // namespace
 
-class NotificationServerAdaptor final : public QDBusAbstractAdaptor, protected QDBusContext {
+class NotificationServerAdaptor final : public QDBusAbstractAdaptor {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.freedesktop.Notifications")
 
@@ -67,8 +65,7 @@ public slots:
 
     void CloseNotification(uint id)
     {
-        if (!m_service->closeNotificationFromClient(id))
-            sendErrorReply(QDBusError::InvalidArgs, QStringLiteral("Unknown notification id"));
+        m_service->closeNotificationFromClient(id);
     }
 
     void GetServerInformation(QString &name, QString &vendor, QString &version, QString &spec_version)

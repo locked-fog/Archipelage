@@ -145,6 +145,17 @@ private slots:
         QCOMPARE(service.unreadCount(), 0);
     }
 
+    void closeUnknownNotificationIsIgnored()
+    {
+        NotificationCenterService service;
+        QSignalSpy closedSpy(&service, &NotificationCenterService::notificationClosed);
+
+        QCOMPARE(service.closeNotificationFromClient(404), false);
+        QCOMPARE(closedSpy.size(), 0);
+        QCOMPARE(service.notifications().size(), 0);
+        QCOMPARE(service.unreadCount(), 0);
+    }
+
     void cyclesModes()
     {
         NotificationCenterService service;
