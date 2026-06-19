@@ -4,7 +4,7 @@ Archipelago is a niri-first Quickshell system shell built from multiple floating
 
 ## Status
 
-Version: `1.1.0-r1`
+Version: `1.1.1-r1`
 
 This release is an MVP for niri:
 
@@ -147,16 +147,16 @@ systemctl --user enable --now archipelago.service
 Build the package from the current git tag:
 
 ```bash
-git archive --format=tar.gz --prefix=archipelago-1.1.0/ \
-  -o archipelago-1.1.0.tar.gz v1.1.0-r1
+git archive --format=tar.gz --prefix=archipelago-1.1.1/ \
+  -o archipelago-1.1.1.tar.gz v1.1.1-r1
 makepkg -f --cleanbuild
 ```
 
 Publish to a local pacman repository:
 
 ```bash
-install -Dm644 archipelago-1.1.0-2-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
-repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-1.1.0-2-x86_64.pkg.tar.zst
+install -Dm644 archipelago-1.1.1-1-x86_64.pkg.tar.zst /srv/pacman/localrepo/x86_64/
+repo-add /srv/pacman/localrepo/x86_64/localrepo.db.tar.gz /srv/pacman/localrepo/x86_64/archipelago-1.1.1-1-x86_64.pkg.tar.zst
 ```
 
 ## License

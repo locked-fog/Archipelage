@@ -1,7 +1,7 @@
 import QtQuick
 import ArchipelagoCore
 
-Rectangle {
+Item {
     id: root
 
     default property alias content: contentHost.data
@@ -9,7 +9,13 @@ Rectangle {
     property bool interactive: true
     property color fillColor: StyleTokens.panel
     property color borderColor: StyleTokens.transparent
+    property real revealOpacity: 1
+    property real revealProgress: 1
+    property real contentOpacity: 1
     readonly property var fadeCurve: [0.33, 1, 0.68, 1, 1, 1]
+    readonly property real revealDotSize: Math.min(10, root.height)
+    readonly property real revealSurfaceWidth: revealDotSize + Math.max(0, root.width - revealDotSize) * revealProgress
+    readonly property real revealSurfaceHeight: revealDotSize + Math.max(0, root.height - revealDotSize) * revealProgress
 
     signal primaryClicked()
     signal secondaryClicked()
@@ -19,25 +25,25 @@ Rectangle {
     signal pointerReleased(real x, real y, int button, int buttons)
     signal pointerCanceled()
 
-    radius: height / 2
-    color: fillColor
-    border.width: borderColor === StyleTokens.transparent ? 0 : 1
-    border.color: borderColor
-    clip: true
-    antialiasing: true
+    Rectangle {
+        id: surface
 
-    Behavior on opacity {
-        NumberAnimation {
-            duration: ArchipelagoConfig.compactFadeDuration
-            easing.type: Easing.BezierSpline
-            easing.bezierCurve: root.fadeCurve
-        }
-    }
+        width: root.revealSurfaceWidth
+        height: root.revealSurfaceHeight
+        anchors.centerIn: parent
+        radius: height / 2
+        color: root.fillColor
+        opacity: root.revealOpacity
+        border.width: root.borderColor === StyleTokens.transparent ? 0 : 1
+        border.color: root.borderColor
+        clip: true
+        antialiasing: true
 
-    Behavior on color {
-        ColorAnimation {
-            duration: 130
-            easing.type: Easing.OutCubic
+        Behavior on color {
+            ColorAnimation {
+                duration: 130
+                easing.type: Easing.OutCubic
+            }
         }
     }
 
@@ -49,7 +55,7 @@ Rectangle {
         anchors.rightMargin: 12
         anchors.topMargin: 2
         anchors.bottomMargin: 2
-        opacity: root.opacity
+        opacity: root.contentOpacity
     }
 
     MouseArea {

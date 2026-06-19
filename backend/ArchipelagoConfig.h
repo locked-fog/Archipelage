@@ -98,7 +98,7 @@ private:
         int expandedWidth = 520;
         int expandedHeight = 380;
         int morphDuration = 480;
-        int compactFadeDuration = 150;
+        int compactFadeDuration = 250;
         int contentFadeDuration = 180;
         QString compositor;
         QString error;
@@ -128,7 +128,7 @@ private:
     int m_expandedWidth = 520;
     int m_expandedHeight = 380;
     int m_morphDuration = 480;
-    int m_compactFadeDuration = 150;
+    int m_compactFadeDuration = 250;
     int m_contentFadeDuration = 180;
     QString m_compositor;
 

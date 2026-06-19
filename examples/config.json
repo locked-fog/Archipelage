@@ -31,7 +31,7 @@
   },
   "animations": {
     "morphMs": 480,
-    "compactFadeMs": 150,
+    "compactFadeMs": 250,
     "contentFadeMs": 180
   },
   "style": {}

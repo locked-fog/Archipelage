@@ -1,15 +1,14 @@
 # Maintainer: Locked_Fog <aboxyxy@outlook.com>
 
-pkgname=archipelago-plugin-media-control-center
-pkgver=0.3.0
-pkgrel=7
-pkgdesc="MPRIS media control center plugin for Archipelago"
+pkgname=archipelago-plugin-notification-center
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Freedesktop notification center plugin for Archipelago"
 arch=('x86_64')
 url="https://github.com/Locked-Fog/Archipelago"
 license=('MIT')
 depends=(
   'archipelago>=1.1.1'
-  'cava'
   'qt6-base'
   'qt6-declarative'
 )

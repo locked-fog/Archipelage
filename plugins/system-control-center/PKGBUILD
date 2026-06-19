@@ -2,13 +2,13 @@
 
 pkgname=archipelago-plugin-system-control-center
 pkgver=0.1.0
-pkgrel=8
+pkgrel=9
 pkgdesc="System control center plugin for Archipelago"
 arch=('x86_64')
 url="https://github.com/Locked-Fog/Archipelago"
 license=('MIT')
 depends=(
-  'archipelago>=1.1.0'
+  'archipelago>=1.1.1'
   'bluez'
   'brightnessctl'
   'networkmanager'

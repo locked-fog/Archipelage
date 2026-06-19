@@ -56,6 +56,7 @@ void ArchipelagoConfigTests::exposesArchipelagoConfigPathAndDefaults()
     QCOMPARE(config.anchorModules(QStringLiteral("overlay")), QVariantList());
     QCOMPARE(config.islandHeight(), 38);
     QCOMPARE(config.islandGap(), 10);
+    QCOMPARE(config.compactFadeDuration(), 250);
     QCOMPARE(config.textFontFamily(), QStringLiteral("Inter Display"));
     QCOMPARE(config.iconFontFamily(), QStringLiteral("JetBrainsMono Nerd Font"));
 

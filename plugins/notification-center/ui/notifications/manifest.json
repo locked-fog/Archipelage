@@ -1,0 +1,30 @@
+{
+  "id": "notifications",
+  "label": "Notifications",
+  "version": "0.1.0",
+  "anchors": ["right"],
+  "defaultPriority": 85,
+  "compact": "Compact.qml",
+  "expanded": "Expanded.qml",
+  "compactLayout": {
+    "preferredWidth": 46,
+    "minimumWidth": 44,
+    "maximumWidth": 340,
+    "visible": true,
+    "priority": 85
+  },
+  "preferredWidth": 560,
+  "preferredHeight": 420,
+  "previewTemplates": [
+    {
+      "id": "message",
+      "component": "NotificationPreview.qml",
+      "defaultWidth": 380,
+      "defaultHeight": 112,
+      "timeoutMs": 5000,
+      "maxVisible": 4,
+      "focusPolicy": "passive"
+    }
+  ],
+  "dataNeeds": ["freedesktop-notifications"]
+}

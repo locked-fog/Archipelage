@@ -1,8 +1,8 @@
 # Maintainer: Locked_Fog <aboxyxy@outlook.com>
 
 pkgname=archipelago
-pkgver=1.1.0
-pkgrel=4
+pkgver=1.1.1
+pkgrel=1
 pkgdesc="niri-first multi-island Quickshell system shell"
 arch=('x86_64')
 url="https://github.com/Locked-Fog/Archipelago"

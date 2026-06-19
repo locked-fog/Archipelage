@@ -33,6 +33,8 @@ Item {
     property string anchorName: ""
     property var host: null
     property int compactLevel: 0
+    property bool lifecycleActive: true
+    property bool compactVisualMounted: true
     readonly property bool expanded: host && host.expandedModule === moduleId
     readonly property bool expandedMounted: expandedSurface.mounted
     readonly property bool expandedOpened: expandedSurface.opened
@@ -75,15 +77,18 @@ Item {
             "minimumWidth": root.effectiveMinimumWidth(),
             "maximumWidth": root.effectiveMaximumWidth(),
             "visibleRequested": root.effectiveVisibleRequested(),
-            "priority": root.effectivePriority()
+            "priority": root.effectivePriority(),
+            "lifecycleActive": root.lifecycleActive
         })
+
+    signal compactExitFinished(string moduleId, string anchorName)
 
     width: assignedLayout.targetWidth !== undefined
         ? Number(assignedLayout.targetWidth || 0)
         : (configuredWidth > 0 ? configuredWidth : 120)
     height: ArchipelagoConfig.islandHeight
-    opacity: (compactVisible ? 1 : 0) * targetLayoutOpacity
-    visible: layoutVisible || opacity > 0.01 || width > 0.5 || expandedSurface.mounted
+    opacity: compactVisible ? (layoutVisible ? targetLayoutOpacity : 1) : 0
+    visible: layoutVisible || compactVisualMounted || expandedSurface.mounted
     enabled: layoutVisible && !expanded && !expandedSurface.mounted
 
     Behavior on opacity {
@@ -94,6 +99,59 @@ Item {
             easing.type: Easing.BezierSpline
             easing.bezierCurve: capsule.fadeCurve
         }
+    }
+
+    Component.onCompleted: {
+        if (layoutVisible)
+            beginCompactAppear();
+        else
+            setCompactHidden();
+    }
+
+    onLayoutVisibleChanged: {
+        if (layoutVisible)
+            beginCompactAppear();
+        else
+            beginCompactDisappear();
+    }
+
+    function beginCompactAppear() {
+        compactDisappearAnimation.stop();
+        compactDisappearFallback.stop();
+        compactAppearAnimation.stop();
+        compactVisualMounted = true;
+        capsule.revealOpacity = 0;
+        capsule.revealProgress = 0;
+        capsule.contentOpacity = 0;
+        compactAppearAnimation.start();
+    }
+
+    function setCompactVisible() {
+        compactAppearAnimation.stop();
+        compactDisappearAnimation.stop();
+        compactDisappearFallback.stop();
+        compactVisualMounted = true;
+        capsule.revealOpacity = 1;
+        capsule.revealProgress = 1;
+        capsule.contentOpacity = 1;
+    }
+
+    function beginCompactDisappear() {
+        compactAppearAnimation.stop();
+        compactDisappearAnimation.stop();
+        compactDisappearFallback.restart();
+        compactVisualMounted = true;
+        compactDisappearAnimation.start();
+    }
+
+    function setCompactHidden() {
+        compactAppearAnimation.stop();
+        compactDisappearAnimation.stop();
+        compactDisappearFallback.stop();
+        capsule.contentOpacity = 0;
+        capsule.revealProgress = 0;
+        capsule.revealOpacity = 0;
+        compactVisualMounted = false;
     }
 
     function invokeHandler(name, ...args) {
@@ -263,6 +321,96 @@ Item {
             restoreMode: Binding.RestoreNone
         }
 
+    }
+
+    SequentialAnimation {
+        id: compactAppearAnimation
+
+        NumberAnimation {
+            target: capsule
+            property: "revealOpacity"
+            from: 0
+            to: 1
+            duration: ArchipelagoConfig.compactFadeDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: capsule.fadeCurve
+        }
+
+        NumberAnimation {
+            target: capsule
+            property: "revealProgress"
+            from: 0
+            to: 1
+            duration: ArchipelagoConfig.compactFadeDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: capsule.fadeCurve
+        }
+
+        NumberAnimation {
+            target: capsule
+            property: "contentOpacity"
+            from: 0
+            to: 1
+            duration: ArchipelagoConfig.compactFadeDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: capsule.fadeCurve
+        }
+
+        ScriptAction {
+            script: root.setCompactVisible()
+        }
+    }
+
+    SequentialAnimation {
+        id: compactDisappearAnimation
+
+        NumberAnimation {
+            target: capsule
+            property: "contentOpacity"
+            to: 0
+            duration: ArchipelagoConfig.compactFadeDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: capsule.fadeCurve
+        }
+
+        NumberAnimation {
+            target: capsule
+            property: "revealProgress"
+            to: 0
+            duration: ArchipelagoConfig.compactFadeDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: capsule.fadeCurve
+        }
+
+        NumberAnimation {
+            target: capsule
+            property: "revealOpacity"
+            to: 0
+            duration: ArchipelagoConfig.compactFadeDuration
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: capsule.fadeCurve
+        }
+
+        ScriptAction {
+            script: {
+                root.setCompactHidden();
+                root.compactExitFinished(root.moduleId, root.anchorName);
+            }
+        }
+    }
+
+    Timer {
+        id: compactDisappearFallback
+
+        interval: ArchipelagoConfig.compactFadeDuration * 3 + 40
+        repeat: false
+
+        onTriggered: {
+            if (root.layoutVisible)
+                return;
+            root.setCompactHidden();
+            root.compactExitFinished(root.moduleId, root.anchorName);
+        }
     }
 
     ExpandedSurface {

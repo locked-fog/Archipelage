@@ -6,6 +6,7 @@
 #include <QQmlEngine>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTest>
 #include <QUrl>
 #include <QVariant>
 
@@ -606,6 +607,126 @@ Item {
         return true;
     }
 
+    bool islandHostKeepsRemovedModulesUntilExitAnimationFinishes()
+    {
+        const QByteArray qml = R"QML(
+import QtQuick
+import ArchipelagoCore
+import "file:///)QML" ARCHIPELAGO_SOURCE_DIR R"QML(/qml/components"
+
+Item {
+    id: root
+
+    width: 260
+    height: 72
+    property var moduleRegistry: ({
+        "alpha": {
+            "compact": alphaCompact,
+            "expanded": null,
+            "anchors": ["left"],
+            "defaultPriority": 90,
+            "compactLayout": {
+                "preferredWidth": 90,
+                "minimumWidth": 60,
+                "maximumWidth": 120
+            }
+        }
+    })
+
+    function moduleEntry(moduleId) {
+        return moduleRegistry && moduleId ? (moduleRegistry[moduleId] || {}) : {};
+    }
+
+    function compactComponentFor(moduleId) {
+        return moduleEntry(moduleId).compact || null;
+    }
+
+    function expandedComponentFor(moduleId) {
+        return moduleEntry(moduleId).expanded || null;
+    }
+
+    function removeAlpha() {
+        moduleRegistry = ({});
+    }
+
+    function leftRenderedCount() {
+        return host.renderedModulesForAnchor("left").length;
+    }
+
+    function alphaActive() {
+        return host.isModuleActive("left", "alpha");
+    }
+
+    function alphaCollapseReason() {
+        return host.layoutFor("alpha").collapseReason;
+    }
+
+    Component {
+        id: alphaCompact
+
+        Item {
+            Text {
+                anchors.centerIn: parent
+                text: "alpha"
+            }
+        }
+    }
+
+    IslandHost {
+        id: host
+
+        anchors.fill: parent
+        shellWindow: root
+    }
+}
+)QML";
+
+        std::unique_ptr<QObject> object(createFromData(qml));
+        if (!object)
+            return false;
+
+        QVariant initialCount;
+        if (!QMetaObject::invokeMethod(object.get(), "leftRenderedCount", Q_RETURN_ARG(QVariant, initialCount)))
+            return false;
+        if (initialCount.toInt() != 1) {
+            qWarning() << "Expected alpha to be initially rendered, got" << initialCount.toInt();
+            return false;
+        }
+
+        if (!QMetaObject::invokeMethod(object.get(), "removeAlpha"))
+            return false;
+        QCoreApplication::processEvents();
+
+        QVariant activeAfterRemove;
+        QVariant countDuringExit;
+        QVariant reasonDuringExit;
+        if (!QMetaObject::invokeMethod(object.get(), "alphaActive", Q_RETURN_ARG(QVariant, activeAfterRemove)))
+            return false;
+        if (!QMetaObject::invokeMethod(object.get(), "leftRenderedCount", Q_RETURN_ARG(QVariant, countDuringExit)))
+            return false;
+        if (!QMetaObject::invokeMethod(object.get(), "alphaCollapseReason", Q_RETURN_ARG(QVariant, reasonDuringExit)))
+            return false;
+        if (activeAfterRemove.toBool() || countDuringExit.toInt() != 1
+            || reasonDuringExit.toString() != QStringLiteral("removed")) {
+            qWarning() << "Expected removed alpha to remain rendered during exit, got"
+                       << activeAfterRemove.toBool() << countDuringExit.toInt()
+                       << reasonDuringExit.toString();
+            return false;
+        }
+
+        QTest::qWait(900);
+        QCoreApplication::processEvents();
+
+        QVariant finalCount;
+        if (!QMetaObject::invokeMethod(object.get(), "leftRenderedCount", Q_RETURN_ARG(QVariant, finalCount)))
+            return false;
+        if (finalCount.toInt() != 0) {
+            qWarning() << "Expected alpha to be removed after exit animation, got" << finalCount.toInt();
+            return false;
+        }
+        return true;
+    }
+
     bool islandModuleForwardsPointerHandlersToCompactView()
     {
         const QByteArray qml = R"QML(
@@ -922,6 +1043,98 @@ Item {
         }
         return true;
     }
+
+    bool previewControllerSupportsOptInPrimaryActivation()
+    {
+        const QByteArray qml = R"QML(
+import QtQuick
+import ArchipelagoCore
+import "file:///)QML" ARCHIPELAGO_SOURCE_DIR R"QML(/qml/components"
+
+Item {
+    id: root
+
+    width: 640
+    height: 320
+    property int activatedCount: 0
+    property string shownId: ""
+
+    function previewTemplateFor(pluginId, templateId) {
+        return {
+            "component": previewContent,
+            "defaultWidth": 220,
+            "defaultHeight": 80,
+            "timeoutMs": 0,
+            "maxVisible": 1,
+            "focusPolicy": "passive"
+        };
+    }
+
+    function showPreviewSurface() {
+        activatedCount = 0;
+        shownId = controller.show("notifications", "message", { "title": "Hello" }, {
+            "activateOnPrimary": true,
+            "onActivated": function() {
+                activatedCount = activatedCount + 1;
+            }
+        });
+        return shownId !== "";
+    }
+
+    function activeSurfaceAllowsPrimaryActivation() {
+        return controller.instances.length === 1 && controller.instances[0].activateOnPrimary === true;
+    }
+
+    function activateShownSurface() {
+        controller.activate(shownId);
+    }
+
+    Component {
+        id: previewContent
+
+        Item {
+            property var payload: ({})
+        }
+    }
+
+    PreviewController {
+        id: controller
+
+        anchors.fill: parent
+        shellWindow: root
+    }
+}
+)QML";
+
+        std::unique_ptr<QObject> object(createFromData(qml));
+        if (!object)
+            return false;
+
+        QVariant shown;
+        if (!QMetaObject::invokeMethod(object.get(), "showPreviewSurface", Q_RETURN_ARG(QVariant, shown)))
+            return false;
+        if (!shown.toBool())
+            return false;
+
+        QVariant optIn;
+        if (!QMetaObject::invokeMethod(object.get(), "activeSurfaceAllowsPrimaryActivation", Q_RETURN_ARG(QVariant, optIn)))
+            return false;
+        if (!optIn.toBool()) {
+            qWarning() << "Expected preview surface to store activateOnPrimary";
+            return false;
+        }
+
+        if (!QMetaObject::invokeMethod(object.get(), "activateShownSurface"))
+            return false;
+        QCoreApplication::processEvents();
+
+        if (object->property("activatedCount").toInt() != 1) {
+            qWarning() << "Expected preview activation callback once, got"
+                       << object->property("activatedCount").toInt();
+            return false;
+        }
+        return true;
+    }
 };
 
 } // namespace
@@ -946,9 +1159,13 @@ int main(int argc, char **argv)
         return 1;
     if (!tests.dynamicLayoutHonorsVisibilityRequestsAndPriorityHiding())
         return 1;
+    if (!tests.islandHostKeepsRemovedModulesUntilExitAnimationFinishes())
+        return 1;
     if (!tests.islandModuleForwardsPointerHandlersToCompactView())
         return 1;
     if (!tests.islandModuleMapsPointerCoordinatesIntoCompactSpace())
+        return 1;
+    if (!tests.previewControllerSupportsOptInPrimaryActivation())
         return 1;
     return 0;
 }

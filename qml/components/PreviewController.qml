@@ -127,6 +127,7 @@ Item {
             "focused": wantsFocus,
             "activatedCallback": opts.onActivated || null,
             "dismissedCallback": opts.onDismissed || null,
+            "activateOnPrimary": opts.activateOnPrimary === true,
             "protectedOffset": protectedOffsetFor(pluginId, templateId, previewHeight, wantsFocus),
             "stackIndex": 0
         });
@@ -291,6 +292,7 @@ Item {
             property bool focused: false
             property var activatedCallback: null
             property var dismissedCallback: null
+            property bool activateOnPrimary: false
             property real protectedOffset: 0
             property int stackIndex: 0
             property bool opened: false
@@ -446,8 +448,15 @@ Item {
 
                 anchors.fill: parent
                 hoverEnabled: true
-                acceptedButtons: Qt.RightButton
-                onClicked: root.dismiss(surface.instanceId)
+                acceptedButtons: surface.activateOnPrimary
+                    ? (Qt.LeftButton | Qt.RightButton)
+                    : Qt.RightButton
+                onClicked: function(mouse) {
+                    if (mouse.button === Qt.LeftButton)
+                        root.activate(surface.instanceId)
+                    else
+                        root.dismiss(surface.instanceId)
+                }
             }
         }
     }
